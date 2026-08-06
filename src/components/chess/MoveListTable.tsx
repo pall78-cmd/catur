@@ -12,14 +12,23 @@ export const MoveListTable: React.FC<MoveListTableProps> = React.memo(({
   currentMoveIndex,
   onGoToMove,
 }) => {
-  const activeMoveRef = useRef<HTMLDivElement | null>(null);
+  const activeMoveRef = useRef<HTMLButtonElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (activeMoveRef.current) {
-      activeMoveRef.current.scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest',
-      });
+    if (activeMoveRef.current && containerRef.current) {
+      const container = containerRef.current;
+      const element = activeMoveRef.current;
+      const elemTop = element.offsetTop;
+      const elemBottom = elemTop + element.offsetHeight;
+      const containerTop = container.scrollTop;
+      const containerBottom = containerTop + container.clientHeight;
+
+      if (elemTop < containerTop) {
+        container.scrollTop = elemTop;
+      } else if (elemBottom > containerBottom) {
+        container.scrollTop = elemBottom - container.clientHeight;
+      }
     }
   }, [currentMoveIndex]);
 
@@ -53,7 +62,7 @@ export const MoveListTable: React.FC<MoveListTableProps> = React.memo(({
         </span>
       </div>
 
-      <div className="overflow-y-auto p-2 divide-y divide-neutral-100 text-xs font-mono">
+      <div ref={containerRef} className="overflow-y-auto p-2 divide-y divide-neutral-100 text-xs font-mono">
         {movePairs.map((pair) => (
           <div key={pair.moveNumber} className="grid grid-cols-12 py-1 items-center hover:bg-neutral-50 rounded">
             <span className="col-span-2 text-neutral-400 font-sans font-medium text-center text-[11px]">

@@ -388,6 +388,26 @@ export default function ChessTutorial() {
     setIsMuted(fn);
   }
 
+  const handleSelectPreset = useCallback((presetPgn: string) => {
+    try {
+      const pgnGame = new Chess();
+      pgnGame.loadPgn(presetPgn);
+      if (pgnGame.history().length > 0) {
+        setActivePgn(presetPgn);
+        setIsCustomMode(false);
+        setCustomInput('');
+        setInteractiveTrial(null);
+        const resetGame = new Chess();
+        setGame(resetGame);
+        setCurrentMoveIndex(-1);
+        setIsPlaying(false);
+        setInputFeedback({ type: 'success', message: 'Game contoh berhasil dimuat!' });
+      }
+    } catch (e) {
+      setInputFeedback({ type: 'error', message: 'Gagal memuat game contoh.' });
+    }
+  }, []);
+
   return (
     <div className="max-w-7xl mx-auto p-3 sm:p-6 font-sans select-none text-neutral-900">
       {/* 1. Page Header */}
@@ -399,7 +419,7 @@ export default function ChessTutorial() {
       {/* Main Grid Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
-        {/* Left Column: Interactive Board & Playback Controls */}
+        {/* Left Column: Interactive Board */}
         <div className="lg:col-span-7 flex flex-col gap-4">
           <ChessBoardView
             activeFen={activeFen}
@@ -413,7 +433,21 @@ export default function ChessTutorial() {
             history={history}
             currentAnnotation={currentAnnotation}
           />
+        </div>
 
+        {/* Right Column: Active Move Description, Playback Controls, FEN/PGN Input, Move Quality Stats, Move List & PGN Export */}
+        <div className="lg:col-span-5 flex flex-col gap-4">
+          {/* Active Move Description & Engine Evaluation */}
+          <ActiveMoveCard
+            currentMoveIndex={currentMoveIndex}
+            lastMove={lastMove}
+            currentAnnotation={currentAnnotation}
+            evaluation={evaluation}
+            engineBestMove={engineBestMove}
+            interactiveTrial={interactiveTrial}
+          />
+
+          {/* Playback Controls directly below Active Move Analysis */}
           <ChessControls
             currentMoveIndex={currentMoveIndex}
             totalMoves={history.length}
@@ -434,19 +468,6 @@ export default function ChessTutorial() {
               goToMove(val);
             }}
           />
-        </div>
-
-        {/* Right Column: Active Move Description, FEN/PGN Input, Move Quality Stats, Move List & PGN Export */}
-        <div className="lg:col-span-5 flex flex-col gap-4">
-          {/* Active Move Description & Engine Evaluation */}
-          <ActiveMoveCard
-            currentMoveIndex={currentMoveIndex}
-            lastMove={lastMove}
-            currentAnnotation={currentAnnotation}
-            evaluation={evaluation}
-            engineBestMove={engineBestMove}
-            interactiveTrial={interactiveTrial}
-          />
 
           {/* FEN & PGN Input Section */}
           <FenPgnInput
@@ -457,6 +478,7 @@ export default function ChessTutorial() {
             isCustomMode={isCustomMode}
             isModifiedGame={activePgn !== pgn || isCustomMode}
             inputFeedback={inputFeedback}
+            onSelectPreset={handleSelectPreset}
           />
 
           {/* Move Quality Statistics Summary Panel */}

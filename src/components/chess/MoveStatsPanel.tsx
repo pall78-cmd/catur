@@ -26,14 +26,31 @@ export const MoveStatsPanel: React.FC<MoveStatsPanelProps> = React.memo(({
       </div>
 
       {/* Accuracy gauges */}
-      <div className="grid grid-cols-2 gap-2 bg-neutral-50 p-2.5 rounded-xl border border-neutral-100">
-        <div className="flex flex-col items-center justify-center p-1.5 bg-white rounded-lg border border-neutral-200/80">
-          <span className="text-[10px] uppercase tracking-wider text-neutral-500 font-bold">Akurasi Putih</span>
-          <span className="text-base font-extrabold text-emerald-600">{moveStats.whiteAccuracy}%</span>
+      <div className="grid grid-cols-2 gap-2 bg-neutral-50/80 p-3 rounded-xl border border-neutral-100">
+        <div className="flex flex-col gap-1 p-2 bg-white rounded-lg border border-neutral-200/70 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] uppercase tracking-wider text-neutral-500 font-bold">Akurasi Putih</span>
+            <span className="text-sm font-extrabold text-emerald-600 font-mono">{moveStats.whiteAccuracy}%</span>
+          </div>
+          <div className="w-full h-1.5 bg-neutral-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+              style={{ width: `${Math.min(100, Math.max(0, moveStats.whiteAccuracy))}%` }}
+            />
+          </div>
         </div>
-        <div className="flex flex-col items-center justify-center p-1.5 bg-white rounded-lg border border-neutral-200/80">
-          <span className="text-[10px] uppercase tracking-wider text-neutral-500 font-bold">Akurasi Hitam</span>
-          <span className="text-base font-extrabold text-blue-600">{moveStats.blackAccuracy}%</span>
+
+        <div className="flex flex-col gap-1 p-2 bg-white rounded-lg border border-neutral-200/70 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] uppercase tracking-wider text-neutral-500 font-bold">Akurasi Hitam</span>
+            <span className="text-sm font-extrabold text-blue-600 font-mono">{moveStats.blackAccuracy}%</span>
+          </div>
+          <div className="w-full h-1.5 bg-neutral-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-blue-500 rounded-full transition-all duration-500"
+              style={{ width: `${Math.min(100, Math.max(0, moveStats.blackAccuracy))}%` }}
+            />
+          </div>
         </div>
       </div>
 
