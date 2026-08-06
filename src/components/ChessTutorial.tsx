@@ -25,6 +25,7 @@ import { MoveListTable } from './chess/MoveListTable';
 import { PgnExportCard } from './chess/PgnExportCard';
 import { StockfishWidget } from './chess/StockfishWidget';
 import { PgnLibraryModal } from './chess/PgnLibraryModal';
+import { PromotionModal } from './chess/PromotionModal';
 
 export default function ChessTutorial() {
   const [game, setGame] = useState(() => new Chess());
@@ -39,6 +40,8 @@ export default function ChessTutorial() {
   const [inputFeedback, setInputFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [rightPanelTab, setRightPanelTab] = useState<'moves' | 'io'>('moves');
+  
+  const [pendingPromotion, setPendingPromotion] = useState<{ sourceSquare: string; targetSquare: string; color: 'w' | 'b' } | null>(null);
 
   // Interactive trial review state
   const [interactiveTrial, setInteractiveTrial] = useState<InteractiveTrial | null>(null);
@@ -236,10 +239,9 @@ export default function ChessTutorial() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handlePrevMove, handleNextMove, handleTogglePlay, handleFlipBoard, handleFirstMove, handleLastMove]);
 
-  // Handle Drag-and-Drop and Click-to-Move interactive move review & manual play
-  const handlePieceDrop = useCallback((sourceSquare: string, targetSquare: string): boolean => {
+  // Helper to apply a validated move
+  const applyMove = useCallback((sourceSquare: string, targetSquare: string, promotionPiece?: string) => {
     try {
-      // Reconstruct board at current index or from trial
       const trialBase = new Chess();
       if (interactiveTrial) {
         trialBase.load(interactiveTrial.fen);
@@ -249,11 +251,10 @@ export default function ChessTutorial() {
         }
       }
 
-      // Try applying the new move
       const move = trialBase.move({
         from: sourceSquare,
         to: targetSquare,
-        promotion: 'q',
+        promotion: promotionPiece || 'q',
       });
 
       if (move) {
@@ -269,21 +270,18 @@ export default function ChessTutorial() {
         const isAtEndOfHistory = currentMoveIndex === history.length - 1;
 
         if (isVeryFirstMove) {
-          // New game trigger (from starting position)
           setActivePgn(trialBase.pgn());
           setIsCustomMode(true);
           setCurrentMoveIndex(0);
           setInteractiveTrial(null);
           setGame(trialBase);
         } else if ((isCustomMode || isAtEndOfHistory) && !interactiveTrial) {
-          // Append to ongoing custom game or end of history
           setActivePgn(trialBase.pgn());
           setIsCustomMode(true);
           setCurrentMoveIndex(prev => prev + 1);
           setInteractiveTrial(null);
           setGame(trialBase);
         } else {
-          // We are in the middle of a loaded game. Create/update a variation trial!
           setInteractiveTrial({
             move,
             fen: trialBase.fen()
@@ -292,10 +290,42 @@ export default function ChessTutorial() {
         return true;
       }
     } catch (e) {
-      return false;
+      // invalid move
     }
     return false;
   }, [currentMoveIndex, history, isMuted, interactiveTrial, isCustomMode]);
+
+  // Handle Drag-and-Drop and Click-to-Move interactive move review & manual play
+  const handlePieceDrop = useCallback((sourceSquare: string, targetSquare: string): boolean => {
+    try {
+      // Reconstruct board to validate
+      const trialBase = new Chess();
+      if (interactiveTrial) {
+        trialBase.load(interactiveTrial.fen);
+      } else {
+        for (let i = 0; i <= currentMoveIndex; i++) {
+          if (history[i]) trialBase.move(history[i]);
+        }
+      }
+
+      // Check if this move requires promotion
+      const piece = trialBase.get(sourceSquare as any);
+      if (piece && piece.type === 'p' && (targetSquare[1] === '8' || targetSquare[1] === '1')) {
+        const moves = trialBase.moves({ verbose: true });
+        const isValidPromotion = moves.some(m => m.from === sourceSquare && m.to === targetSquare && m.flags.includes('p'));
+        
+        if (isValidPromotion) {
+          setPendingPromotion({ sourceSquare, targetSquare, color: piece.color });
+          return false; // Reject drop temporarily, wait for modal choice
+        }
+      }
+
+      return applyMove(sourceSquare, targetSquare);
+    } catch (e) {
+      // Invalid drop
+    }
+    return false;
+  }, [currentMoveIndex, history, interactiveTrial, applyMove]);
 
   // Handle loading custom FEN or PGN
   const handleLoadInput = useCallback(() => {
@@ -506,7 +536,7 @@ export default function ChessTutorial() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
         {/* Left Column: Interactive Board & Active Move Analysis */}
-        <div className="lg:col-span-7 flex flex-col gap-4">
+        <div className="lg:col-span-7 flex flex-col gap-4 relative">
           <ChessBoardView
             activeFen={activeFen}
             boardOrientation={boardOrientation}
@@ -521,6 +551,18 @@ export default function ChessTutorial() {
             currentAnnotation={currentAnnotation}
             evaluation={evaluation}
             engineBestMove={engineBestMove}
+          />
+          
+          <PromotionModal
+            isOpen={pendingPromotion !== null}
+            color={pendingPromotion?.color || 'w'}
+            onSelect={(piece) => {
+              if (pendingPromotion) {
+                applyMove(pendingPromotion.sourceSquare, pendingPromotion.targetSquare, piece);
+                setPendingPromotion(null);
+              }
+            }}
+            onCancel={() => setPendingPromotion(null)}
           />
 
           {/* Active Move Description & Engine Evaluation (Analisis Langkah - Tepat di bawah papan catur) */}

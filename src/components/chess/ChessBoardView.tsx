@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Chessboard } from 'react-chessboard';
 import { RotateCcw } from 'lucide-react';
+import { Chess } from 'chess.js';
 import { getBadgeDetails, getSquareCoordinates } from '../../utils/chessAnnotations';
 import { InteractiveTrial, EngineBestMove } from '../../types/chess';
 import { EvaluationBar } from './EvaluationBar';
@@ -37,6 +38,7 @@ export const ChessBoardView: React.FC<ChessBoardViewProps> = React.memo(({
   engineBestMove,
 }) => {
   const [moveFrom, setMoveFrom] = useState<string | null>(null);
+  const [legalTargetSquares, setLegalTargetSquares] = useState<string[]>([]);
 
   // Determine move evaluation badge to overlay on board for either regular history move or variation trial
   const lastMove = currentMoveIndex >= 0 ? history[currentMoveIndex] : null;
@@ -54,7 +56,7 @@ export const ChessBoardView: React.FC<ChessBoardViewProps> = React.memo(({
     ? getSquareCoordinates(activeMoveForBadge.to, boardOrientation)
     : null;
 
-  // Lightweight highlight styles for source and target squares of the last move or trial move + Stockfish recommendation + moveFrom
+  // Lightweight highlight styles for source and target squares of the last move or trial move + Stockfish recommendation + moveFrom + legal moves
   const highlightStyles = useMemo(() => {
     const styles: Record<string, React.CSSProperties> = {};
     if (activeMoveForBadge?.from && activeMoveForBadge?.to) {
@@ -80,20 +82,43 @@ export const ChessBoardView: React.FC<ChessBoardViewProps> = React.memo(({
         borderRadius: '4px',
       };
     }
+    legalTargetSquares.forEach((square) => {
+      styles[square] = {
+        ...(styles[square] || {}),
+        backgroundImage: 'radial-gradient(circle, rgba(0,0,0,.25) 25%, transparent 25%)',
+      };
+    });
     return styles;
-  }, [activeMoveForBadge, engineBestMove, moveFrom]);
+  }, [activeMoveForBadge, engineBestMove, moveFrom, legalTargetSquares]);
 
-  function onSquareClick(square: string) {
+  function handleSquareClick(square: string) {
     if (moveFrom) {
       const success = onPieceDrop(moveFrom, square);
       if (!success) {
-        // If clicking another piece of same color, it sets as new moveFrom, otherwise clears
-        setMoveFrom(square);
+        // If clicking another piece, check if it's ours by attempting to get moves
+        const chess = new Chess(activeFen);
+        const moves = chess.moves({ square, verbose: true });
+        if (moves.length > 0) {
+           setMoveFrom(square);
+           setLegalTargetSquares(moves.map(m => m.to));
+        } else {
+           setMoveFrom(null);
+           setLegalTargetSquares([]);
+        }
       } else {
         setMoveFrom(null);
+        setLegalTargetSquares([]);
       }
     } else {
-      setMoveFrom(square);
+      const chess = new Chess(activeFen);
+      const moves = chess.moves({ square, verbose: true });
+      if (moves.length > 0) {
+        setMoveFrom(square);
+        setLegalTargetSquares(moves.map(m => m.to));
+      } else {
+        setMoveFrom(null);
+        setLegalTargetSquares([]);
+      }
     }
   }
 
@@ -102,15 +127,16 @@ export const ChessBoardView: React.FC<ChessBoardViewProps> = React.memo(({
     boardOrientation: boardOrientation,
     onPieceDrop: ({ sourceSquare, targetSquare }: any) => {
       setMoveFrom(null); // Clear tap state if dragged
+      setLegalTargetSquares([]);
       if (!sourceSquare || !targetSquare) return false;
       return onPieceDrop(sourceSquare, targetSquare);
     },
-    onSquareClick: onSquareClick,
+    onSquareClick: ({ square }: any) => handleSquareClick(square),
     darkSquareStyle: { backgroundColor: '#b58863' },
     lightSquareStyle: { backgroundColor: '#f0d9b5' },
     squareStyles: highlightStyles,
     animationDurationInMs: 200,
-    allowDragging: true,
+    allowDragging: false, // The user requested to disable dragging ("jangan pake logika drag deh pake aja klik")
   }), [activeFen, boardOrientation, onPieceDrop, highlightStyles, moveFrom]);
 
   const topPlayerLabel = boardOrientation === 'black' ? whitePlayer : blackPlayer;
@@ -156,7 +182,7 @@ export const ChessBoardView: React.FC<ChessBoardViewProps> = React.memo(({
         <div className="flex-1 aspect-square relative rounded-lg overflow-hidden shadow-sm border border-neutral-300/60 z-10">
           <Chessboard
             key={boardOrientation}
-            {...chessboardOptions}
+            options={chessboardOptions}
           />
 
           {/* Dynamic Move Classification Overlay Badge */}
