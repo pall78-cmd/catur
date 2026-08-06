@@ -9,6 +9,7 @@ interface ActiveMoveCardProps {
   evaluation: string;
   engineBestMove: EngineBestMove | null;
   interactiveTrial: any;
+  engineDepth?: number;
 }
 
 export const ActiveMoveCard: React.FC<ActiveMoveCardProps> = React.memo(({
@@ -18,6 +19,7 @@ export const ActiveMoveCard: React.FC<ActiveMoveCardProps> = React.memo(({
   evaluation,
   engineBestMove,
   interactiveTrial,
+  engineDepth,
 }) => {
   const getBadgeColorClass = (evalType?: string) => {
     switch (evalType) {
@@ -63,7 +65,9 @@ export const ActiveMoveCard: React.FC<ActiveMoveCardProps> = React.memo(({
         <div className="flex items-center gap-1.5">
           {evaluation && (
             <div className="flex items-center gap-1 px-2 py-0.5 bg-neutral-800 rounded-md border border-neutral-700/80">
-              <span className="text-[9px] text-neutral-400 font-mono uppercase">SF</span>
+              <span className="text-[9px] text-neutral-400 font-mono uppercase">
+                {engineDepth && engineDepth > 0 ? `SF • D${engineDepth}` : 'SF • D15'}
+              </span>
               <span className={`text-xs font-bold font-mono ${
                 evaluation.startsWith('+') ? 'text-emerald-400' :
                 evaluation.startsWith('-') ? 'text-rose-400' : 'text-neutral-200'
@@ -72,7 +76,7 @@ export const ActiveMoveCard: React.FC<ActiveMoveCardProps> = React.memo(({
               </span>
             </div>
           )}
-          {lastMove && currentAnnotation?.evaluation && (
+          {(lastMove || interactiveTrial) && currentAnnotation?.evaluation && (
             <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-md ${getBadgeColorClass(currentAnnotation.evaluation)}`}>
               {currentAnnotation.evaluation}
             </span>
@@ -94,10 +98,27 @@ export const ActiveMoveCard: React.FC<ActiveMoveCardProps> = React.memo(({
               <Zap className="w-3.5 h-3.5" />
               Langkah Percobaan: <span className="font-mono text-white ml-1">{interactiveTrial.move.san}</span>
             </span>
+            <span className="text-[10px] font-semibold text-neutral-400 bg-neutral-800 px-2 py-0.5 rounded-md border border-neutral-700/50">
+              {interactiveTrial.move.color === 'w' ? 'Giliran Putih' : 'Giliran Hitam'}
+            </span>
           </div>
-          <p className="text-neutral-300 text-xs leading-relaxed">
-            Variasi kustom dari langkah <strong className="text-white font-mono">{interactiveTrial.move.san}</strong>. Mesin Stockfish sedang menganalisis implikasi taktis posisi ini.
+          <p className="text-neutral-200 text-xs leading-relaxed">
+            {currentAnnotation?.annotation || `Variasi kustom dari langkah ${interactiveTrial.move.san}. Stockfish sedang menganalisis implikasi taktis posisi ini.`}
           </p>
+
+          {currentAnnotation?.alternatives && (
+            <div className="p-2 bg-neutral-800/90 border border-neutral-700/80 rounded-xl flex items-start gap-1.5 text-xs text-neutral-300 leading-snug">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+              <span>{currentAnnotation.alternatives}</span>
+            </div>
+          )}
+
+          {engineBestMove && (
+            <div className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-mono pt-0.5">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>Saran Mesin: {engineBestMove.from} → {engineBestMove.to}</span>
+            </div>
+          )}
         </div>
       ) : (
         <div className="flex flex-col gap-2">

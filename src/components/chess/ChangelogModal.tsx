@@ -8,8 +8,80 @@ interface ChangelogModalProps {
 
 const CHANGELOG_DATA = [
   {
-    version: 'v1.3.0',
+    version: 'v1.6.0',
     date: 'Versi Terbaru',
+    tag: 'Sorotan Petak & Deteksi Variasi Kustom',
+    tagColor: 'bg-emerald-100 text-emerald-900 border-emerald-200',
+    changes: [
+      {
+        title: 'Sorotan Petak Langkah (Board Square Highlighting)',
+        desc: 'Sistem menandai petak asal (source) dan petak tujuan (target) dari langkah terakhir maupun variasi percobaan secara visual dengan warna keemasan beranimasi halus, meningkatkan kejelasan visualisasi permainan.',
+      },
+      {
+        title: 'Klasifikasi & Evaluasi Variasi Kustom Real-time',
+        desc: 'Variasi percobaan user (trial moves) kini langsung dianalisis oleh sistem untuk mendeteksi kualitas langkah: Blunder (??), Kesalahan (?), Ketidakakuratan (?!), Bagus (✓), Terbaik (★), Brilian (!!), Teori (📖), atau Langkah Paksaan (!).',
+      },
+      {
+        title: 'Manajemen Variasi & Tombol Hapus Variasi Intuitif',
+        desc: 'Menambahkan kontrol cepat untuk menghapus variasi percobaan dan kembali ke jalur permainan utama tanpa risiko tumpang tindih state atau bug navigasi.',
+      },
+      {
+        title: 'Pencegahan Konflik Z-Index & Animasi Ringan',
+        desc: 'Pengaturan lapisan overlay lencana evaluasi dan papan catur yang dioptimalkan agar tidak mengalami bentrokan rendering, memastikan transisi 60 FPS di seluruh siklus pembukaan hingga babak akhir (endgame).',
+      },
+    ],
+  },
+  {
+    version: 'v1.5.0',
+    date: 'Evaluasi Bar',
+    tag: 'Visual Evaluation Bar',
+    tagColor: 'bg-amber-100 text-amber-900 border-amber-200',
+    changes: [
+      {
+        title: 'Bar Evaluasi Posisi Visual (Evaluation Bar)',
+        desc: 'Bilah indikator evaluasi interaktif yang ditempatkan persis di samping papan catur, memperlihatkan keunggulan Putih/Hitam secara real-time (+0.0, +2.5, -1.8, #M3) menggunakan kalkulasi kurva sigmoid presisi.',
+      },
+      {
+        title: 'Adaptasi Rotasi Papan Catur Flipped',
+        desc: 'Bar evaluasi secara otomatis membalik warna baris atas/bawah ketika orientasi papan diubah (Flip Board / Rotasi F), memastikan visualisasi keuntungan selaras dengan pemain di bagian atas/bawah.',
+      },
+      {
+        title: 'Optimasi Respon & Pencegahan Lag WebWorker',
+        desc: 'Penerapan pencabutan timer debounce otomatis saat pembersihan efek (cleanup useEffect) dan pembatasan pembaruan state DOM untuk performa animasi 60 FPS tanpa kebocoran memori.',
+      },
+      {
+        title: 'Pemeriksaan Tipe Data & Kompatibilitas FEN/PGN',
+        desc: 'Penanganan pencegahan error parsing pada FEN ilegal, status skakmat ekstrem (+M/-M), dan validasi komponen terisolasi agar aman untuk pemeliharaan jangka panjang.',
+      },
+    ],
+  },
+  {
+    version: 'v1.4.0',
+    date: 'Stockfish Depth 15 & Clean Code',
+    tag: 'Engine Upgrade',
+    tagColor: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+    changes: [
+      {
+        title: 'Peningkatan Kedalaman Mesin (Depth 15)',
+        desc: 'Core Stockfish ditingkatkan dari Depth 12 ke Depth 15, memberikan perhitungan taktis dan evaluasi positional yang jauh lebih akurat.',
+      },
+      {
+        title: 'Optimasi Memori UCI & Debounce Search',
+        desc: 'Menerapkan opsi Hash 32MB untuk memori posisi transposisi serta debounce request 30ms agar pengoperasian tombol dan navigasi tidak memicu lag pada WebWorker.',
+      },
+      {
+        title: 'Arsitektur & Dokumentasi JSDoc Profesional',
+        desc: 'Pembersihan basis kode hook dan komponen dengan tipe data TypeScript eksplisit, dokumentasi JSDoc terstruktur, serta penanganan siklus hidup komponen yang mudah dipelihara oleh pengembang senior.',
+      },
+      {
+        title: 'Indikator Kedalaman Real-time (SF • D15)',
+        desc: 'Lencana evaluasi mesin di kartu analisis kini menampilkan tingkat kedalaman (Depth) kalkulasi Stockfish secara langsung.',
+      },
+    ],
+  },
+  {
+    version: 'v1.3.0',
+    date: 'UI & Ergonomi',
     tag: 'UI & Responsive Optimization',
     tagColor: 'bg-emerald-100 text-emerald-800 border-emerald-200',
     changes: [

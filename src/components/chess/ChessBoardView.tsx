@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Chessboard } from 'react-chessboard';
 import { RotateCcw } from 'lucide-react';
 import { getBadgeDetails, getSquareCoordinates } from '../../utils/chessAnnotations';
 import { InteractiveTrial } from '../../types/chess';
+import { EvaluationBar } from './EvaluationBar';
 
 interface ChessBoardViewProps {
   activeFen: string;
@@ -15,6 +16,7 @@ interface ChessBoardViewProps {
   currentMoveIndex: number;
   history: any[];
   currentAnnotation: any;
+  evaluation?: string;
 }
 
 export const ChessBoardView: React.FC<ChessBoardViewProps> = React.memo(({
@@ -28,20 +30,39 @@ export const ChessBoardView: React.FC<ChessBoardViewProps> = React.memo(({
   currentMoveIndex,
   history,
   currentAnnotation,
+  evaluation = '0.0',
 }) => {
-  // Determine move evaluation badge to overlay on board
+  // Determine move evaluation badge to overlay on board for either regular history move or variation trial
   const lastMove = currentMoveIndex >= 0 ? history[currentMoveIndex] : null;
-  const badgeInfo = lastMove
+  const activeMoveForBadge = interactiveTrial ? interactiveTrial.move : lastMove;
+
+  const badgeInfo = activeMoveForBadge
     ? getBadgeDetails(
         currentAnnotation?.evaluation,
-        lastMove.san.includes('+'),
-        lastMove.san.includes('#')
+        activeMoveForBadge.san.includes('+'),
+        activeMoveForBadge.san.includes('#')
       )
     : null;
 
-  const badgeCoords = lastMove
-    ? getSquareCoordinates(lastMove.to, boardOrientation)
+  const badgeCoords = activeMoveForBadge
+    ? getSquareCoordinates(activeMoveForBadge.to, boardOrientation)
     : null;
+
+  // Lightweight highlight styles for source and target squares of the last move or trial move
+  const highlightStyles = useMemo(() => {
+    const styles: Record<string, React.CSSProperties> = {};
+    if (activeMoveForBadge?.from && activeMoveForBadge?.to) {
+      styles[activeMoveForBadge.from] = {
+        backgroundColor: 'rgba(255, 230, 0, 0.38)',
+        borderRadius: '3px',
+      };
+      styles[activeMoveForBadge.to] = {
+        backgroundColor: 'rgba(255, 195, 0, 0.65)',
+        borderRadius: '3px',
+      };
+    }
+    return styles;
+  }, [activeMoveForBadge]);
 
   const topPlayerLabel = boardOrientation === 'black' ? whitePlayer : blackPlayer;
   const topPlayerSymbol = boardOrientation === 'black' ? 'W' : 'B';
@@ -50,7 +71,7 @@ export const ChessBoardView: React.FC<ChessBoardViewProps> = React.memo(({
   const bottomPlayerSymbol = boardOrientation === 'black' ? 'B' : 'W';
 
   return (
-    <div className="bg-neutral-50 p-4 rounded-2xl shadow-sm border border-neutral-200 relative">
+    <div className="bg-neutral-50 p-3.5 sm:p-4 rounded-2xl shadow-sm border border-neutral-200 relative">
       {/* Top Player Info & Trial Reset Action */}
       <div className="flex justify-between items-center mb-3 px-1">
         <div className="flex items-center gap-2.5">
@@ -66,44 +87,54 @@ export const ChessBoardView: React.FC<ChessBoardViewProps> = React.memo(({
           <button
             onClick={onResetTrial}
             className="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all shadow-2xs active:scale-95 cursor-pointer"
-            title="Reset variasi ke urutan game utama"
+            title="Hapus variasi kustom & kembali ke urutan game utama"
           >
             <RotateCcw className="w-3.5 h-3.5 text-amber-600" />
-            <span>Reset Trial</span>
+            <span>Hapus Variasi</span>
           </button>
         )}
       </div>
 
-      {/* Board Container */}
-      <div className="w-full aspect-square max-w-[500px] mx-auto relative rounded-lg overflow-hidden shadow-sm">
-        <Chessboard
-          options={{
-            id: 'tutorial-chessboard',
-            position: activeFen,
-            boardOrientation: boardOrientation,
-            onPieceDrop: ({ sourceSquare, targetSquare }) => {
-              if (!targetSquare) return false;
-              return onPieceDrop(sourceSquare, targetSquare);
-            },
-            darkSquareStyle: { backgroundColor: '#b58863' },
-            lightSquareStyle: { backgroundColor: '#f0d9b5' },
-            animationDurationInMs: 200,
-          }}
+      {/* Board & Evaluation Bar Flex Wrapper */}
+      <div className="w-full max-w-[520px] mx-auto flex items-stretch gap-2.5 sm:gap-3">
+        {/* Dynamic Stockfish Evaluation Bar */}
+        <EvaluationBar
+          evaluation={evaluation}
+          boardOrientation={boardOrientation}
         />
 
-        {/* Dynamic Move Classification Overlay Badge */}
-        {badgeInfo && badgeCoords && (
-          <div
-            className={`absolute pointer-events-none z-10 -translate-x-1/2 -translate-y-1/2 px-2 py-0.5 rounded-full text-xs font-bold flex items-center gap-1 shadow-md transition-all duration-300 ${badgeInfo.badgeClass}`}
-            style={{
-              left: badgeCoords.left,
-              top: badgeCoords.top,
+        {/* Board Container */}
+        <div className="flex-1 aspect-square relative rounded-lg overflow-hidden shadow-sm border border-neutral-300/60">
+          <Chessboard
+            options={{
+              id: 'tutorial-chessboard',
+              position: activeFen,
+              boardOrientation: boardOrientation,
+              onPieceDrop: ({ sourceSquare, targetSquare }) => {
+                if (!targetSquare) return false;
+                return onPieceDrop(sourceSquare, targetSquare);
+              },
+              darkSquareStyle: { backgroundColor: '#b58863' },
+              lightSquareStyle: { backgroundColor: '#f0d9b5' },
+              squareStyles: highlightStyles,
+              animationDurationInMs: 200,
             }}
-          >
-            <span>{badgeInfo.icon}</span>
-            <span>{badgeInfo.label}</span>
-          </div>
-        )}
+          />
+
+          {/* Dynamic Move Classification Overlay Badge */}
+          {badgeInfo && badgeCoords && (
+            <div
+              className={`absolute pointer-events-none z-10 -translate-x-1/2 -translate-y-1/2 px-2 py-0.5 rounded-full text-xs font-bold flex items-center gap-1 shadow-md transition-all duration-300 ${badgeInfo.badgeClass}`}
+              style={{
+                left: badgeCoords.left,
+                top: badgeCoords.top,
+              }}
+            >
+              <span>{badgeInfo.icon}</span>
+              <span>{badgeInfo.label}</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Bottom Player Info */}
@@ -122,3 +153,4 @@ export const ChessBoardView: React.FC<ChessBoardViewProps> = React.memo(({
 });
 
 ChessBoardView.displayName = 'ChessBoardView';
+

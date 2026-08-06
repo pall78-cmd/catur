@@ -41,8 +41,8 @@ export default function ChessTutorial() {
   // Compute active FEN for Stockfish & Board
   const activeFen = interactiveTrial ? interactiveTrial.fen : game.fen();
 
-  // Stockfish evaluation via custom hook
-  const { evaluation, engineBestMove } = useStockfish(activeFen);
+  // Stockfish evaluation via custom hook (Depth 15 for enhanced tactical analysis)
+  const { evaluation, engineBestMove, engineDepth } = useStockfish(activeFen, { targetDepth: 15 });
 
   // Parsed game based on activePgn
   const fullGame = useMemo(() => {
@@ -293,20 +293,23 @@ export default function ChessTutorial() {
     setIsPlaying(false);
   }, []);
 
-  // Memoized current active move details
+  // Memoized current active move details (main line or trial variation)
   const lastMove = currentMoveIndex >= 0 ? history[currentMoveIndex] : null;
   
   const currentAnnotation = useMemo(() => {
-    if (!lastMove) return null;
+    const activeMove = interactiveTrial ? interactiveTrial.move : lastMove;
+    const activeIdx = interactiveTrial ? currentMoveIndex + 1 : currentMoveIndex;
+    if (!activeMove) return null;
+
     return getDynamicAnnotation(
-      lastMove,
-      currentMoveIndex,
-      history.length,
+      activeMove,
+      activeIdx,
+      history.length + (interactiveTrial ? 1 : 0),
       evaluation,
       engineBestMove,
       isDefaultGame
     );
-  }, [lastMove, currentMoveIndex, history.length, evaluation, engineBestMove, isDefaultGame]);
+  }, [interactiveTrial, lastMove, currentMoveIndex, history.length, evaluation, engineBestMove, isDefaultGame]);
 
   // Memoized Move pairs table data
   const movePairs = useMemo<MovePairItem[]>(() => {
@@ -432,6 +435,7 @@ export default function ChessTutorial() {
             currentMoveIndex={currentMoveIndex}
             history={history}
             currentAnnotation={currentAnnotation}
+            evaluation={evaluation}
           />
         </div>
 
@@ -445,6 +449,7 @@ export default function ChessTutorial() {
             evaluation={evaluation}
             engineBestMove={engineBestMove}
             interactiveTrial={interactiveTrial}
+            engineDepth={engineDepth}
           />
 
           {/* Playback Controls directly below Active Move Analysis */}
