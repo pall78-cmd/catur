@@ -1,0 +1,105 @@
+import React, { useRef, useEffect } from 'react';
+import { MovePairItem } from '../../types/chess';
+
+interface MoveListTableProps {
+  movePairs: MovePairItem[];
+  currentMoveIndex: number;
+  onGoToMove: (index: number) => void;
+}
+
+export const MoveListTable: React.FC<MoveListTableProps> = React.memo(({
+  movePairs,
+  currentMoveIndex,
+  onGoToMove,
+}) => {
+  const activeMoveRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (activeMoveRef.current) {
+      activeMoveRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+      });
+    }
+  }, [currentMoveIndex]);
+
+  const getEvalBadge = (evalType: string) => {
+    switch (evalType) {
+      case 'Brilian':
+      case 'Langkah Brilian':
+        return <span className="ml-1 px-1 py-0.2 text-[9px] bg-cyan-100 text-cyan-800 rounded font-bold">💎</span>;
+      case 'Terbaik':
+      case 'Langkah Terbaik':
+        return <span className="ml-1 px-1 py-0.2 text-[9px] bg-emerald-100 text-emerald-800 rounded font-bold">⭐</span>;
+      case 'Blunder':
+        return <span className="ml-1 px-1 py-0.2 text-[9px] bg-red-100 text-red-800 rounded font-bold">💥</span>;
+      case 'Kesalahan':
+        return <span className="ml-1 px-1 py-0.2 text-[9px] bg-orange-100 text-orange-800 rounded font-bold">❓</span>;
+      case 'Ketidakakuratan':
+        return <span className="ml-1 px-1 py-0.2 text-[9px] bg-yellow-100 text-yellow-800 rounded font-bold">⚠️</span>;
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden flex flex-col max-h-[280px]">
+      <div className="p-3 border-b border-neutral-100 bg-neutral-50 flex items-center justify-between">
+        <h3 className="font-bold text-neutral-800 text-xs uppercase tracking-wider">
+          Daftar Langkah
+        </h3>
+        <span className="text-[10px] text-neutral-500 font-medium">
+          Klik langkah untuk navigasi
+        </span>
+      </div>
+
+      <div className="overflow-y-auto p-2 divide-y divide-neutral-100 text-xs font-mono">
+        {movePairs.map((pair) => (
+          <div key={pair.moveNumber} className="grid grid-cols-12 py-1 items-center hover:bg-neutral-50 rounded">
+            <span className="col-span-2 text-neutral-400 font-sans font-medium text-center text-[11px]">
+              {pair.moveNumber}.
+            </span>
+
+            {/* White move column */}
+            <div className="col-span-5 pr-1">
+              <button
+                ref={currentMoveIndex === pair.whiteIndex ? activeMoveRef : null}
+                onClick={() => onGoToMove(pair.whiteIndex)}
+                className={`w-full text-left px-2 py-1 rounded transition-colors flex items-center justify-between cursor-pointer ${
+                  currentMoveIndex === pair.whiteIndex
+                    ? 'bg-neutral-900 text-white font-bold'
+                    : 'text-neutral-800 hover:bg-neutral-200/60'
+                }`}
+              >
+                <span>{pair.white.san}</span>
+                {getEvalBadge(pair.whiteEval)}
+              </button>
+            </div>
+
+            {/* Black move column */}
+            <div className="col-span-5 pl-1">
+              {pair.black ? (
+                <button
+                  ref={currentMoveIndex === pair.blackIndex ? activeMoveRef : null}
+                  onClick={() => onGoToMove(pair.blackIndex!)}
+                  className={`w-full text-left px-2 py-1 rounded transition-colors flex items-center justify-between cursor-pointer ${
+                    currentMoveIndex === pair.blackIndex
+                      ? 'bg-neutral-900 text-white font-bold'
+                      : 'text-neutral-800 hover:bg-neutral-200/60'
+                  }`}
+                >
+                  <span>{pair.black.san}</span>
+                  {getEvalBadge(pair.blackEval || '')}
+                </button>
+              ) : (
+                <span className="text-neutral-300 px-2">-</span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+});
+
+MoveListTable.displayName = 'MoveListTable';

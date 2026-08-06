@@ -11,6 +11,7 @@ Semua perubahan pada proyek ini akan dicatat di dalam berkas ini.
 - **Saran Strategis Dinamis:** Menambahkan analisis mesin mendalam (Saran Strategis) untuk posisi Kustom maupun Terpandu yang menjelaskan langkah improvisasi, prioritas saat pembukaan (opening), pertengahan (midgame), dan akhir (endgame), serta peringatan pencegahan blunder saat evaluasi Stockfish sangat buruk.
 
 ### Changed
+- **Saran Strategis Dinamis & Anotasi Otomatis PGN:** Sistem penulisan anotasi kini didukung oleh mesin anotasi taktis dinamis Bahasa Indonesia. Setiap langkah dari PGN atau FEN kustom (Lichess/Chess.com) sekarang memiliki narasi taktis yang akurat (memakan perwira, rokade, skak, promosi, pengembangan perwira, analisis pertengahan/akhir) serta klasifikasi evaluasi Stockfish (Brilian, Terbaik, Bagus, Ketidakakuratan, Kesalahan, Blunder) secara otomatis.
 - **Pembaruan Tata Letak (Layout):** Penjelasan langkah demi langkah, anotasi PGN, dan evaluasi Stockfish (real-time) diletakkan dengan sangat rapi. Tombol kontrol navigasi/putar kini disederhanakan dan disatukan secara kompak langsung di bawah papan catur beserta slider langkah, sementara panel input FEN/PGN dipindahkan ke bagian bawah agar antarmuka tidak terasa ramai dan mengganggu tampilan utama.
 - **Penghapusan Gulir Otomatis:** Fitur gulir otomatis (auto-scroll) pada bagian Daftar Langkah (Move List) telah dihentikan (dinonaktifkan) sesuai dengan umpan balik, memberi pengguna kontrol penuh atas daftar langkah.
 
