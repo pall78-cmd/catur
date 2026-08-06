@@ -49,6 +49,7 @@ export interface MoveQualityDistribution {
   Ketidakakuratan: number;
   Kesalahan: number;
   Blunder: number;
+  Terlewat: number;
 }
 
 export interface MoveStatsSummary {

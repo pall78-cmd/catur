@@ -136,10 +136,73 @@ export const OPENINGS_DATABASE: ChessOpening[] = [
     keyConcepts: ["Simetri Taktis", "Soliditas Tinggi", "Transisi Endgame"]
   },
   {
+    eco: "C45",
+    name: "Pembukaan Skotlandia (Scotch Game)",
+    moves: ["e4", "e5", "Nf3", "Nc6", "d4"],
+    description: "Putih langsung membuka pusat pada langkah ketiga, memicu pertukaran bidak cepat dan pertempuran perwira terbuka.",
+    keyConcepts: ["Pembukaan Pusat Cepat", "Jalur Terbuka d4", "Inisiatif Perwira"]
+  },
+  {
+    eco: "C23",
+    name: "Pembukaan Wina (Vienna Game)",
+    moves: ["e4", "e5", "Nc3"],
+    description: "Putih memperkuat petak d5 dan e4 dengan Kuda c3 sebelum menentukan arah serangan dengan f4 atau Bc4.",
+    keyConcepts: ["Perkembangan Nc3", "Potensi Gambit f4", "Penguasaan Pusat Fleksibel"]
+  },
+  {
+    eco: "C47",
+    name: "Pembukaan Empat Kuda (Four Knights Game)",
+    moves: ["e4", "e5", "Nf3", "Nc6", "Nc3", "Nf6"],
+    description: "Pembukaan sangat simetris dan aman tempat kedua pihak mengembangkan seluruh Kuda ke petak alami.",
+    keyConcepts: ["Perkembangan Simetris", "Kontrol Petak d4/d5", "Keamanan Awal Game"]
+  },
+  {
+    eco: "C30",
+    name: "Gambit Raja (King's Gambit)",
+    moves: ["e4", "e5", "f4"],
+    description: "Gambit romantik klasik mengorbankan bidak f4 untuk membongkar pusat Hitam dan menguasai lajur f.",
+    keyConcepts: ["Serangan Agresif Lajur f", "Pengorbanan Bidak f4", "Serangan Taktis Tajam"]
+  },
+  {
+    eco: "B07",
+    name: "Pertahanan Pirc (Pirc Defense)",
+    moves: ["e4", "d6", "d4", "Nf6", "Nc3", "g6"],
+    description: "Pertahanan hipermodern fleksibel tempat Hitam membiarkan Putih membangun pusat bidak besar lalu menyerang balik.",
+    keyConcepts: ["Fianchetto g7", "Serangan Balik c5/e5", "Pendekatan Hipermodern"]
+  },
+  {
+    eco: "B01",
+    name: "Pertahanan Skandinavia (Scandinavian Defense)",
+    moves: ["e4", "d5"],
+    description: "Hitam langsung menantang e4 pada langkah pertama. Bidak e4 ditangkap dan Menteri Hitam aktif sejak awal.",
+    keyConcepts: ["Tantangan Pusat Langkah 1", "Menteri Aktif", "Struktur Bidak Solid"]
+  },
+  {
+    eco: "A04",
+    name: "Pembukaan Reti (Reti Opening)",
+    moves: ["Nf3"],
+    description: "Langkah Kuda f3 yang fleksibel mengontrol e5 dan d4, menjaga semua opsi pembukaan tetap terbuka.",
+    keyConcepts: ["Fleksibility Tinggi", "Pencegahan 1...e5", "Transisi Sistem"]
+  },
+  {
+    eco: "E00",
+    name: "Pembukaan Catalan (Catalan Opening)",
+    moves: ["d4", "Nf6", "c4", "e6", "g3"],
+    description: "Putih menggabungkan Gambit Menteri dengan Fianchetto Gajah g2 untuk menguasai diagonal panjang h1-a8.",
+    keyConcepts: ["Fianchetto Gajah g2", "Diagonal Panjang a8-h1", "Tekanan Posisional Sayap Raja"]
+  },
+  {
+    eco: "E12",
+    name: "Pertahanan India Menteri (Queen's Indian Defense)",
+    moves: ["d4", "Nf6", "c4", "e6", "Nf3", "b6"],
+    description: "Hitam mengontrol petak e4 secara hipermodern lewat b6 dan Bb7 tanpa mendesak d5 terlalu dini.",
+    keyConcepts: ["Fianchetto Bb7", "Kontrol Petak e4", "Struktur Sayap Menteri Solid"]
+  },
+  {
     eco: "C20",
     name: "Pembukaan Raja (King's Pawn Game)",
     moves: ["e4", "e5"],
-    description: "Pertempuran terbuka paling фундаментаal dalam catur, kedua pihak memperebutkan petak pusat d4/d5.",
+    description: "Pertempuran terbuka paling fundamental dalam catur, kedua pihak memperebutkan petak pusat d4/d5.",
     keyConcepts: ["Kontrol Pusat", "Pengembangan Perwira", "Jalur Terbuka"]
   }
 ];

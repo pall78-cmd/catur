@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Chess } from 'chess.js';
+import { ListOrdered, FolderUp } from 'lucide-react';
 import { pgn, overview } from '../data/analysis';
 import { playMoveSound } from '../utils/chessAudio';
 import { detectOpening } from '../data/openings';
@@ -11,7 +12,7 @@ import {
   calculateMoveStats, 
   generateFullPgn 
 } from '../utils/chessAnnotations';
-import { MovePairItem, InteractiveTrial } from '../types/chess';
+import { MovePairItem, InteractiveTrial, EngineBestMove } from '../types/chess';
 
 // Subcomponents
 import { ChessHeader } from './chess/ChessHeader';
@@ -22,27 +23,47 @@ import { ActiveMoveCard } from './chess/ActiveMoveCard';
 import { MoveStatsPanel } from './chess/MoveStatsPanel';
 import { MoveListTable } from './chess/MoveListTable';
 import { PgnExportCard } from './chess/PgnExportCard';
+import { StockfishWidget } from './chess/StockfishWidget';
+import { PgnLibraryModal } from './chess/PgnLibraryModal';
 
 export default function ChessTutorial() {
   const [game, setGame] = useState(() => new Chess());
   const [currentMoveIndex, setCurrentMoveIndex] = useState(-1);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [boardOrientation, setBoardOrientation] = useState<'white' | 'black'>('black');
+  const [boardOrientation, setBoardOrientation] = useState<'white' | 'black'>('white');
   const [isMuted, setIsMuted] = useState(false);
 
-  const [activePgn, setActivePgn] = useState(pgn);
+  const [activePgn, setActivePgn] = useState('');
   const [customInput, setCustomInput] = useState('');
   const [isCustomMode, setIsCustomMode] = useState(false);
   const [inputFeedback, setInputFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+  const [rightPanelTab, setRightPanelTab] = useState<'moves' | 'io'>('moves');
 
   // Interactive trial review state
   const [interactiveTrial, setInteractiveTrial] = useState<InteractiveTrial | null>(null);
 
+  // Per-move evaluation cache for accurate Stockfish analysis across all PGN positions
+  const [perMoveEvalMap, setPerMoveEvalMap] = useState<Record<number, { evaluation?: string; engineBestMove?: EngineBestMove | null }>>({});
+
   // Compute active FEN for Stockfish & Board
   const activeFen = interactiveTrial ? interactiveTrial.fen : game.fen();
 
-  // Stockfish evaluation via custom hook (Depth 15 for enhanced tactical analysis)
-  const { evaluation, engineBestMove, engineDepth } = useStockfish(activeFen, { targetDepth: 15 });
+  // Stockfish 18 evaluation via custom hook (Depth 18 for enhanced tactical analysis)
+  const { evaluation, engineBestMove, engineDepth, analysisTimeMs, clearEngineHash } = useStockfish(activeFen, { targetDepth: 18 });
+
+  // Cache Stockfish evaluation for current move index when active
+  useEffect(() => {
+    if (currentMoveIndex >= 0 && !interactiveTrial && evaluation && !evaluation.includes('Mengevaluasi') && !evaluation.includes('Gagal')) {
+      setPerMoveEvalMap(prev => {
+        if (prev[currentMoveIndex]?.evaluation === evaluation) return prev;
+        return {
+          ...prev,
+          [currentMoveIndex]: { evaluation, engineBestMove }
+        };
+      });
+    }
+  }, [currentMoveIndex, interactiveTrial, evaluation, engineBestMove]);
 
   // Parsed game based on activePgn
   const fullGame = useMemo(() => {
@@ -74,20 +95,26 @@ export default function ChessTutorial() {
         result: null,
       };
     }
+    if (!activePgn || history.length === 0) {
+      return {
+        white: 'Pemain Putih',
+        black: 'Pemain Hitam',
+        title: 'Dasbor Analisis Catur Kustom',
+        result: null,
+      };
+    }
     let headers: Record<string, string> = {};
     try {
       headers = fullGame.header();
     } catch (e) {
       headers = {};
     }
-    const white = (headers['White'] && headers['White'] !== '?') ? headers['White'] : overview.white;
-    const black = (headers['Black'] && headers['Black'] !== '?') ? headers['Black'] : overview.black;
+    const white = (headers['White'] && headers['White'] !== '?') ? headers['White'] : 'Pemain Putih';
+    const black = (headers['Black'] && headers['Black'] !== '?') ? headers['Black'] : 'Pemain Hitam';
     const result = (headers['Result'] && headers['Result'] !== '*') ? headers['Result'] : null;
-    let title = overview.title;
-
-    if (activePgn !== pgn) {
-      title = `Analisis Game: ${white} vs ${black}`;
-    }
+    const title = (white && black && white !== 'Pemain Putih')
+      ? `Analisis Game: ${white} vs ${black}`
+      : 'Analisis Game PGN';
 
     return {
       white,
@@ -95,7 +122,7 @@ export default function ChessTutorial() {
       title,
       result,
     };
-  }, [isCustomMode, activePgn, fullGame]);
+  }, [isCustomMode, activePgn, fullGame, history.length]);
 
   // Jump to move index
   const goToMove = useCallback((targetIndex: number) => {
@@ -155,7 +182,7 @@ export default function ChessTutorial() {
   }, []);
 
   const handleToggleMute = useCallback(() => {
-    setIsIsMuted(prev => !prev);
+    setIsMuted(prev => !prev);
   }, []);
 
   // Auto-play interval timer
@@ -193,7 +220,7 @@ export default function ChessTutorial() {
       } else if (e.key === ' ') {
         e.preventDefault();
         handleTogglePlay();
-      } else if (e.key === 'f' || e.key === 'F') {
+      } else if (e.key === 'f' || e.key === 'F' || e.key === 'z' || e.key === 'Z') {
         e.preventDefault();
         handleFlipBoard();
       } else if (e.key === 'Home') {
@@ -209,22 +236,27 @@ export default function ChessTutorial() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handlePrevMove, handleNextMove, handleTogglePlay, handleFlipBoard, handleFirstMove, handleLastMove]);
 
-  // Handle Drag-and-Drop and Click-to-Move interactive move review
+  // Handle Drag-and-Drop and Click-to-Move interactive move review & manual play
   const handlePieceDrop = useCallback((sourceSquare: string, targetSquare: string): boolean => {
     try {
-      const trialChess = new Chess(interactiveTrial ? interactiveTrial.fen : game.fen());
-      const move = trialChess.move({
+      // Reconstruct board at current index or from trial
+      const trialBase = new Chess();
+      if (interactiveTrial) {
+        trialBase.load(interactiveTrial.fen);
+      } else {
+        for (let i = 0; i <= currentMoveIndex; i++) {
+          if (history[i]) trialBase.move(history[i]);
+        }
+      }
+
+      // Try applying the new move
+      const move = trialBase.move({
         from: sourceSquare,
         to: targetSquare,
         promotion: 'q',
       });
 
       if (move) {
-        setInteractiveTrial({
-          move,
-          fen: trialChess.fen(),
-        });
-
         if (!isMuted) {
           const isCapture = Boolean(move.captured);
           const isCheck = move.san.includes('+');
@@ -232,18 +264,44 @@ export default function ChessTutorial() {
           const isCastle = move.san === 'O-O' || move.san === 'O-O-O';
           playMoveSound(isCapture, isCheck, isCastle, isMate);
         }
+
+        const isVeryFirstMove = currentMoveIndex === -1;
+        const isAtEndOfHistory = currentMoveIndex === history.length - 1;
+
+        if (isVeryFirstMove) {
+          // New game trigger (from starting position)
+          setActivePgn(trialBase.pgn());
+          setIsCustomMode(true);
+          setCurrentMoveIndex(0);
+          setInteractiveTrial(null);
+          setGame(trialBase);
+        } else if ((isCustomMode || isAtEndOfHistory) && !interactiveTrial) {
+          // Append to ongoing custom game or end of history
+          setActivePgn(trialBase.pgn());
+          setIsCustomMode(true);
+          setCurrentMoveIndex(prev => prev + 1);
+          setInteractiveTrial(null);
+          setGame(trialBase);
+        } else {
+          // We are in the middle of a loaded game. Create/update a variation trial!
+          setInteractiveTrial({
+            move,
+            fen: trialBase.fen()
+          });
+        }
         return true;
       }
     } catch (e) {
       return false;
     }
     return false;
-  }, [interactiveTrial, game, isMuted]);
+  }, [currentMoveIndex, history, isMuted, interactiveTrial, isCustomMode]);
 
   // Handle loading custom FEN or PGN
   const handleLoadInput = useCallback(() => {
     setInputFeedback(null);
     setInteractiveTrial(null);
+    setPerMoveEvalMap({});
     const str = customInput.trim();
     if (!str) return;
 
@@ -282,11 +340,12 @@ export default function ChessTutorial() {
   }, [customInput]);
 
   const handleResetGame = useCallback(() => {
-    setActivePgn(pgn);
-    setIsCustomMode(false);
+    setActivePgn('');
+    setIsCustomMode(true);
     setCustomInput('');
     setInteractiveTrial(null);
-    setInputFeedback({ type: 'success', message: 'Game tutorial awal berhasil dikembalikan.' });
+    setPerMoveEvalMap({});
+    setInputFeedback({ type: 'success', message: 'Seluruh langkah telah dikosongkan. Silakan gerakkan bidak putih untuk memulai permainan baru.' });
     const resetGame = new Chess();
     setGame(resetGame);
     setCurrentMoveIndex(-1);
@@ -307,9 +366,11 @@ export default function ChessTutorial() {
       history.length + (interactiveTrial ? 1 : 0),
       evaluation,
       engineBestMove,
-      isDefaultGame
+      isDefaultGame,
+      activeIdx,
+      perMoveEvalMap
     );
-  }, [interactiveTrial, lastMove, currentMoveIndex, history.length, evaluation, engineBestMove, isDefaultGame]);
+  }, [interactiveTrial, lastMove, currentMoveIndex, history.length, evaluation, engineBestMove, isDefaultGame, perMoveEvalMap]);
 
   // Memoized Move pairs table data
   const movePairs = useMemo<MovePairItem[]>(() => {
@@ -318,9 +379,27 @@ export default function ChessTutorial() {
       const whiteMove = history[i];
       const blackMove = history[i + 1];
 
-      const whiteAnn = getDynamicAnnotation(whiteMove, i, history.length, evaluation, engineBestMove, isDefaultGame);
+      const whiteAnn = getDynamicAnnotation(
+        whiteMove, 
+        i, 
+        history.length, 
+        evaluation, 
+        engineBestMove, 
+        isDefaultGame,
+        currentMoveIndex,
+        perMoveEvalMap
+      );
       const blackAnn = blackMove 
-        ? getDynamicAnnotation(blackMove, i + 1, history.length, evaluation, engineBestMove, isDefaultGame)
+        ? getDynamicAnnotation(
+            blackMove, 
+            i + 1, 
+            history.length, 
+            evaluation, 
+            engineBestMove, 
+            isDefaultGame,
+            currentMoveIndex,
+            perMoveEvalMap
+          )
         : null;
 
       pairs.push({
@@ -334,12 +413,19 @@ export default function ChessTutorial() {
       });
     }
     return pairs;
-  }, [history, evaluation, engineBestMove, isDefaultGame]);
+  }, [history, evaluation, engineBestMove, isDefaultGame, currentMoveIndex, perMoveEvalMap]);
 
   // Move Quality Statistics
   const moveStats = useMemo(() => {
-    return calculateMoveStats(history, evaluation, engineBestMove, isDefaultGame);
-  }, [history, evaluation, engineBestMove, isDefaultGame]);
+    return calculateMoveStats(
+      history, 
+      evaluation, 
+      engineBestMove, 
+      isDefaultGame,
+      currentMoveIndex,
+      perMoveEvalMap
+    );
+  }, [history, evaluation, engineBestMove, isDefaultGame, currentMoveIndex, perMoveEvalMap]);
 
   // Export PGN string
   const fullPgnText = useMemo(() => {
@@ -349,9 +435,11 @@ export default function ChessTutorial() {
       detectedOpening,
       isDefaultGame,
       evaluation,
-      engineBestMove
+      engineBestMove,
+      currentMoveIndex,
+      perMoveEvalMap
     );
-  }, [history, activeOverview, detectedOpening, isDefaultGame, evaluation, engineBestMove]);
+  }, [history, activeOverview, detectedOpening, isDefaultGame, evaluation, engineBestMove, currentMoveIndex, perMoveEvalMap]);
 
   // Dynamic overview text for game summary
   const dynamicOverviewText = useMemo(() => {
@@ -386,11 +474,6 @@ export default function ChessTutorial() {
     return summary;
   }, [isDefaultGame, activePgn, history.length, activeOverview, detectedOpening, moveStats]);
 
-  // Fix helper typo
-  function setIsIsMuted(fn: (prev: boolean) => boolean) {
-    setIsMuted(fn);
-  }
-
   const handleSelectPreset = useCallback((presetPgn: string) => {
     try {
       const pgnGame = new Chess();
@@ -422,7 +505,7 @@ export default function ChessTutorial() {
       {/* Main Grid Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
-        {/* Left Column: Interactive Board */}
+        {/* Left Column: Interactive Board & Active Move Analysis */}
         <div className="lg:col-span-7 flex flex-col gap-4">
           <ChessBoardView
             activeFen={activeFen}
@@ -432,16 +515,15 @@ export default function ChessTutorial() {
             interactiveTrial={interactiveTrial}
             onResetTrial={() => setInteractiveTrial(null)}
             onPieceDrop={handlePieceDrop}
+            onFlipBoard={handleFlipBoard}
             currentMoveIndex={currentMoveIndex}
             history={history}
             currentAnnotation={currentAnnotation}
             evaluation={evaluation}
+            engineBestMove={engineBestMove}
           />
-        </div>
 
-        {/* Right Column: Active Move Description, Playback Controls, FEN/PGN Input, Move Quality Stats, Move List & PGN Export */}
-        <div className="lg:col-span-5 flex flex-col gap-4">
-          {/* Active Move Description & Engine Evaluation */}
+          {/* Active Move Description & Engine Evaluation (Analisis Langkah - Tepat di bawah papan catur) */}
           <ActiveMoveCard
             currentMoveIndex={currentMoveIndex}
             lastMove={lastMove}
@@ -450,9 +532,21 @@ export default function ChessTutorial() {
             engineBestMove={engineBestMove}
             interactiveTrial={interactiveTrial}
             engineDepth={engineDepth}
+            onOpenPerformance={() => setIsPerformanceOpen(true)}
           />
 
-          {/* Playback Controls directly below Active Move Analysis */}
+          {/* Stockfish 18 Engine Memory & Performance Widget */}
+          <StockfishWidget
+            engineDepth={engineDepth}
+            analysisTimeMs={analysisTimeMs}
+            engineBestMove={engineBestMove}
+            onOpenPerformance={() => setIsPerformanceOpen(true)}
+          />
+        </div>
+
+        {/* Right Column: Playback Controls, FEN/PGN Input, Move Quality Stats, Move List & PGN Export */}
+        <div className="lg:col-span-5 flex flex-col gap-4">
+          {/* Playback Controls */}
           <ChessControls
             currentMoveIndex={currentMoveIndex}
             totalMoves={history.length}
@@ -474,43 +568,91 @@ export default function ChessTutorial() {
             }}
           />
 
-          {/* FEN & PGN Input Section */}
-          <FenPgnInput
-            customInput={customInput}
-            setCustomInput={setCustomInput}
-            onLoadInput={handleLoadInput}
-            onResetGame={handleResetGame}
-            isCustomMode={isCustomMode}
-            isModifiedGame={activePgn !== pgn || isCustomMode}
-            inputFeedback={inputFeedback}
-            onSelectPreset={handleSelectPreset}
-          />
+          {/* Tab Navigation for Lower Right Panel */}
+          <div className="flex items-center gap-1.5 p-1 bg-neutral-200/70 rounded-xl">
+            <button
+              onClick={() => setRightPanelTab('moves')}
+              className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                rightPanelTab === 'moves'
+                  ? 'bg-white text-neutral-900 shadow-xs'
+                  : 'text-neutral-600 hover:text-neutral-900'
+              }`}
+            >
+              <ListOrdered className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Langkah & Akurasi</span>
+            </button>
+            <button
+              onClick={() => setRightPanelTab('io')}
+              className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                rightPanelTab === 'io'
+                  ? 'bg-white text-neutral-900 shadow-xs'
+                  : 'text-neutral-600 hover:text-neutral-900'
+              }`}
+            >
+              <FolderUp className="w-3.5 h-3.5 text-amber-600" />
+              <span>Impor & Ekspor</span>
+            </button>
+          </div>
 
-          {/* Move Quality Statistics Summary Panel */}
-          <MoveStatsPanel
-            moveStats={moveStats}
-            totalMoves={history.length}
-          />
+          {rightPanelTab === 'moves' ? (
+            <div className="flex flex-col gap-3 animate-in fade-in duration-150">
+              {/* Move Quality Statistics Summary Panel */}
+              <MoveStatsPanel
+                moveStats={moveStats}
+                totalMoves={history.length}
+              />
 
-          {/* Move List Navigation Table */}
-          <MoveListTable
-            movePairs={movePairs}
-            currentMoveIndex={currentMoveIndex}
-            onGoToMove={(idx) => {
-              setIsCustomMode(false);
-              setInteractiveTrial(null);
-              goToMove(idx);
-            }}
-          />
+              {/* Move List Navigation Table */}
+              <MoveListTable
+                movePairs={movePairs}
+                currentMoveIndex={currentMoveIndex}
+                onGoToMove={(idx) => {
+                  setIsCustomMode(false);
+                  setInteractiveTrial(null);
+                  goToMove(idx);
+                }}
+              />
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3 animate-in fade-in duration-150">
+              {/* FEN & PGN Input Section */}
+              <FenPgnInput
+                customInput={customInput}
+                setCustomInput={setCustomInput}
+                onLoadInput={() => {
+                  handleLoadInput();
+                  setRightPanelTab('moves');
+                }}
+                onResetGame={handleResetGame}
+                isCustomMode={isCustomMode}
+                isModifiedGame={activePgn !== pgn || isCustomMode}
+                inputFeedback={inputFeedback}
+                onSelectPreset={(p) => {
+                  handleSelectPreset(p);
+                  setRightPanelTab('moves');
+                }}
+                onOpenLibrary={() => setIsLibraryOpen(true)}
+              />
 
-          {/* Overview & Export PGN Card */}
-          <PgnExportCard
-            overviewText={dynamicOverviewText}
-            fullPgnText={fullPgnText}
-          />
+              {/* Overview & Export PGN Card */}
+              <PgnExportCard
+                overviewText={dynamicOverviewText}
+                fullPgnText={fullPgnText}
+                onOpenLibrary={() => setIsLibraryOpen(true)}
+              />
+            </div>
+          )}
         </div>
 
       </div>
+
+      {/* IndexedDB PGN Storage Collection Modal */}
+      <PgnLibraryModal
+        isOpen={isLibraryOpen}
+        onClose={() => setIsLibraryOpen(false)}
+        onSelectPgn={handleSelectPreset}
+        currentPgnText={fullPgnText}
+      />
     </div>
   );
 }

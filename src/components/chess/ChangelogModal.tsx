@@ -8,8 +8,52 @@ interface ChangelogModalProps {
 
 const CHANGELOG_DATA = [
   {
+    version: 'v1.8.0',
+    date: 'Pembaruan Terbaru',
+    tag: 'Widget Performa SF18 & Klasifikasi Langkah Otomatis',
+    tagColor: 'bg-indigo-100 text-indigo-900 border-indigo-200',
+    changes: [
+      {
+        title: 'Widget Dashboard Monitoring Memori & Depth Stockfish 18',
+        desc: 'Menampilkan indikator real-time alokasi memori Hash Table Stockfish 18 (32 MB), kedalaman kalkulasi pencarian (Target D18), latency eksekusi (ms), dan alokasi memori JS Heap browser.',
+      },
+      {
+        title: 'Perbaikan Total Mode Permainan Manual & Drag-and-Drop',
+        desc: 'Memperbaiki bug interaksi drag-and-drop pada papan catur sehingga pengguna kini dapat dengan lancar memainkan langkah manual kustom untuk mencoba strategi dan variasi baru.',
+      },
+      {
+        title: 'Sistem Klasifikasi & Label Langkah Otomatis Lengkap',
+        desc: 'Sistem secara cerdas memberi label pada setiap langkah: Blunder (??), Kesalahan (?), Ketidakakuratan (?!), Langkah Terlewat (🛟), Langkah Paksaan (!), Brilian (!!), Teori (📖), Bagus (✓), Terbaik (★), Skak (⚔️), Skakmat (👑), dan Remis (🤝).',
+      },
+      {
+        title: 'Arsitektur & Kode Sumber Terstruktur Rapi',
+        desc: 'Pembersihan modul secara terisolasi, penanganan event handlers yang kuat, dan manajemen state yang bersih untuk memastikan tidak ada bug atau regresi.',
+      },
+    ],
+  },
+  {
+    version: 'v1.7.0',
+    date: 'Versi v1.7.0',
+    tag: 'Pembaruan Mesin Stockfish 18 & Analisis Kedalaman D18',
+    tagColor: 'bg-indigo-100 text-indigo-900 border-indigo-200',
+    changes: [
+      {
+        title: 'Upgrade Mesin Catur ke Stockfish 18 (SF18)',
+        desc: 'Mesin evaluasi catur kini menggunakan runtime Stockfish 18 berkecepatan tinggi dengan kalkulasi kedalaman default D18 untuk penilaian taktikal dan posisional yang jauh lebih tajam dan akurat.',
+      },
+      {
+        title: 'Optimasi Cache Evaluasi Per Langkah (Per-Move Eval Mapping)',
+        desc: 'Sistem pencatatan evaluasi mengingat skor dan saran perwira Stockfish 18 untuk setiap langkah PGN secara independen tanpa mengalami kebingungan FEN.',
+      },
+      {
+        title: 'Lencana Indikator SF18 Real-time',
+        desc: 'Kartu analisis kini menampilkan status engine SF18 • D18 secara transparan untuk menunjukkan progres kedalaman analisis yang aktif.',
+      },
+    ],
+  },
+  {
     version: 'v1.6.0',
-    date: 'Versi Terbaru',
+    date: 'Versi v1.6.0',
     tag: 'Sorotan Petak & Deteksi Variasi Kustom',
     tagColor: 'bg-emerald-100 text-emerald-900 border-emerald-200',
     changes: [

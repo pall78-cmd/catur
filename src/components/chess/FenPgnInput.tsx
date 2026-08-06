@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, RefreshCw } from 'lucide-react';
+import { Sparkles, RefreshCw, Database } from 'lucide-react';
 
 interface FenPgnInputProps {
   customInput: string;
@@ -10,6 +10,7 @@ interface FenPgnInputProps {
   isModifiedGame: boolean;
   inputFeedback: { type: 'success' | 'error'; message: string } | null;
   onSelectPreset?: (pgnString: string) => void;
+  onOpenLibrary?: () => void;
 }
 
 const PRESET_GAMES = [
@@ -46,6 +47,7 @@ export const FenPgnInput: React.FC<FenPgnInputProps> = React.memo(({
   isModifiedGame,
   inputFeedback,
   onSelectPreset,
+  onOpenLibrary,
 }) => {
   return (
     <div className="bg-white p-4 rounded-2xl shadow-xs border border-neutral-200/80 flex flex-col gap-2.5">
@@ -53,16 +55,26 @@ export const FenPgnInput: React.FC<FenPgnInputProps> = React.memo(({
         <label className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider block">
           Muat Posisi / Game (FEN / PGN)
         </label>
-        {isModifiedGame && (
+        <div className="flex items-center gap-2">
           <button
             onClick={onResetGame}
-            className="text-[11px] font-semibold text-neutral-600 hover:text-neutral-900 flex items-center gap-1 transition-colors cursor-pointer"
-            title="Kembali ke Game Tutorial Utama"
+            className="text-[11px] font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 px-2.5 py-0.5 rounded-full border border-rose-200/80 flex items-center gap-1 transition-colors cursor-pointer"
+            title="Hapus seluruh langkah dan mulai game catur kustom baru dari posisi awal"
           >
-            <RefreshCw className="w-3 h-3 text-neutral-500" />
-            <span>Reset Tutorial Utama</span>
+            <RefreshCw className="w-3 h-3 text-rose-600" />
+            <span>Kosongkan Langkah / Game Baru</span>
           </button>
-        )}
+          {onOpenLibrary && (
+            <button
+              onClick={onOpenLibrary}
+              className="text-[11px] font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-0.5 rounded-full border border-indigo-200/80 flex items-center gap-1 transition-colors cursor-pointer"
+              title="Buka Koleksi PGN tersimpan di IndexedDB"
+            >
+              <Database className="w-3 h-3 text-indigo-600" />
+              <span>Koleksi IndexedDB</span>
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">

@@ -55,7 +55,7 @@ export const MoveStatsPanel: React.FC<MoveStatsPanelProps> = React.memo(({
       </div>
 
       {/* Move Classification Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-xs">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-xs">
         <div className="flex items-center justify-between px-2.5 py-1.5 bg-cyan-50/80 border border-cyan-200/60 rounded-lg text-cyan-900 font-medium">
           <span className="flex items-center gap-1"><span className="text-xs">💎</span> Brilian</span>
           <span className="font-bold bg-cyan-200/80 px-1.5 py-0.5 rounded text-[11px]">{moveStats.totalStats.Brilian}</span>
@@ -79,6 +79,10 @@ export const MoveStatsPanel: React.FC<MoveStatsPanelProps> = React.memo(({
         <div className="flex items-center justify-between px-2.5 py-1.5 bg-orange-50/80 border border-orange-200/60 rounded-lg text-orange-900 font-medium">
           <span className="flex items-center gap-1"><span className="text-xs">❓</span> Kesalahan</span>
           <span className="font-bold bg-orange-200/80 px-1.5 py-0.5 rounded text-[11px]">{moveStats.totalStats.Kesalahan}</span>
+        </div>
+        <div className="flex items-center justify-between px-2.5 py-1.5 bg-purple-50/80 border border-purple-200/60 rounded-lg text-purple-900 font-medium">
+          <span className="flex items-center gap-1"><span className="text-xs">✖</span> Terlewat</span>
+          <span className="font-bold bg-purple-200/80 px-1.5 py-0.5 rounded text-[11px]">{moveStats.totalStats.Terlewat}</span>
         </div>
         <div className="flex items-center justify-between px-2.5 py-1.5 bg-rose-50/80 border border-rose-200/60 rounded-lg text-rose-900 font-medium">
           <span className="flex items-center gap-1"><span className="text-xs">💥</span> Blunder</span>

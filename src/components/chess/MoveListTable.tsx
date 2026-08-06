@@ -62,50 +62,56 @@ export const MoveListTable: React.FC<MoveListTableProps> = React.memo(({
         </span>
       </div>
 
-      <div ref={containerRef} className="overflow-y-auto p-2 divide-y divide-neutral-100 text-xs font-mono">
-        {movePairs.map((pair) => (
-          <div key={pair.moveNumber} className="grid grid-cols-12 py-1 items-center hover:bg-neutral-50 rounded">
-            <span className="col-span-2 text-neutral-400 font-sans font-medium text-center text-[11px]">
-              {pair.moveNumber}.
-            </span>
+      <div ref={containerRef} className="overflow-y-auto p-2 divide-y divide-neutral-100 text-xs font-mono min-h-[120px]">
+        {movePairs.length === 0 ? (
+          <div className="py-8 px-4 text-center text-neutral-400 text-xs font-sans leading-relaxed">
+            Belum ada langkah tercatat. Mainkan langkah pertama di papan atau tempelkan FEN/PGN di tab <strong className="text-neutral-600 font-semibold">Impor & Ekspor</strong>.
+          </div>
+        ) : (
+          movePairs.map((pair) => (
+            <div key={pair.moveNumber} className="grid grid-cols-12 py-1 items-center hover:bg-neutral-50 rounded">
+              <span className="col-span-2 text-neutral-400 font-sans font-medium text-center text-[11px]">
+                {pair.moveNumber}.
+              </span>
 
-            {/* White move column */}
-            <div className="col-span-5 pr-1">
-              <button
-                ref={currentMoveIndex === pair.whiteIndex ? activeMoveRef : null}
-                onClick={() => onGoToMove(pair.whiteIndex)}
-                className={`w-full text-left px-2 py-1 rounded transition-colors flex items-center justify-between cursor-pointer ${
-                  currentMoveIndex === pair.whiteIndex
-                    ? 'bg-neutral-900 text-white font-bold'
-                    : 'text-neutral-800 hover:bg-neutral-200/60'
-                }`}
-              >
-                <span>{pair.white.san}</span>
-                {getEvalBadge(pair.whiteEval)}
-              </button>
-            </div>
-
-            {/* Black move column */}
-            <div className="col-span-5 pl-1">
-              {pair.black ? (
+              {/* White move column */}
+              <div className="col-span-5 pr-1">
                 <button
-                  ref={currentMoveIndex === pair.blackIndex ? activeMoveRef : null}
-                  onClick={() => onGoToMove(pair.blackIndex!)}
+                  ref={currentMoveIndex === pair.whiteIndex ? activeMoveRef : null}
+                  onClick={() => onGoToMove(pair.whiteIndex)}
                   className={`w-full text-left px-2 py-1 rounded transition-colors flex items-center justify-between cursor-pointer ${
-                    currentMoveIndex === pair.blackIndex
+                    currentMoveIndex === pair.whiteIndex
                       ? 'bg-neutral-900 text-white font-bold'
                       : 'text-neutral-800 hover:bg-neutral-200/60'
                   }`}
                 >
-                  <span>{pair.black.san}</span>
-                  {getEvalBadge(pair.blackEval || '')}
+                  <span>{pair.white.san}</span>
+                  {getEvalBadge(pair.whiteEval)}
                 </button>
-              ) : (
-                <span className="text-neutral-300 px-2">-</span>
-              )}
+              </div>
+
+              {/* Black move column */}
+              <div className="col-span-5 pl-1">
+                {pair.black ? (
+                  <button
+                    ref={currentMoveIndex === pair.blackIndex ? activeMoveRef : null}
+                    onClick={() => onGoToMove(pair.blackIndex!)}
+                    className={`w-full text-left px-2 py-1 rounded transition-colors flex items-center justify-between cursor-pointer ${
+                      currentMoveIndex === pair.blackIndex
+                        ? 'bg-neutral-900 text-white font-bold'
+                        : 'text-neutral-800 hover:bg-neutral-200/60'
+                    }`}
+                  >
+                    <span>{pair.black.san}</span>
+                    {getEvalBadge(pair.blackEval || '')}
+                  </button>
+                ) : (
+                  <span className="text-neutral-300 px-2">-</span>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );

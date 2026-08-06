@@ -5,7 +5,7 @@ import { EngineBestMove } from '../types/chess';
  * Options for configuring Stockfish engine analysis depth & performance.
  */
 interface StockfishOptions {
-  /** Maximum calculation depth (default 15 for deeper tactical vision) */
+  /** Maximum calculation depth (default 18 for Stockfish 18 engine analysis) */
   targetDepth?: number;
   /** Hash memory size in MB (default 32MB for transposition caching) */
   hashSize?: number;
@@ -14,7 +14,7 @@ interface StockfishOptions {
 }
 
 /**
- * React hook managing Stockfish WebWorker lifecycle, UCI command dispatching,
+ * React hook managing Stockfish 18 WebWorker lifecycle, UCI command dispatching,
  * debounced position analysis, and evaluation result parsing.
  *
  * @param activeFen - The current position in Forsyth–Edwards Notation (FEN)
@@ -24,15 +24,17 @@ export function useStockfish(
   activeFen: string,
   options: StockfishOptions = {}
 ) {
-  const { targetDepth = 15, hashSize = 32, throttleMs = 80 } = options;
+  const { targetDepth = 18, hashSize = 32, throttleMs = 80 } = options;
 
   const [evaluation, setEvaluation] = useState<string>('Mengevaluasi...');
   const [engineBestMove, setEngineBestMove] = useState<EngineBestMove | null>(null);
   const [engineDepth, setEngineDepth] = useState<number>(0);
+  const [analysisTimeMs, setAnalysisTimeMs] = useState<number>(0);
 
   const engineRef = useRef<Worker | null>(null);
   const activeFenRef = useRef(activeFen);
   const lastUpdateRef = useRef<number>(0);
+  const startTimeRef = useRef<number>(Date.now());
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Sync latest FEN to ref for async worker callback evaluation context
@@ -66,6 +68,7 @@ export function useStockfish(
 
         // Parse bestmove line output from Stockfish
         if (line.startsWith('bestmove')) {
+          setAnalysisTimeMs(Date.now() - startTimeRef.current);
           const parts = line.split(' ');
           if (parts[1] && parts[1].length >= 4 && parts[1] !== '(none)') {
             const moveStr = parts[1];
@@ -79,6 +82,7 @@ export function useStockfish(
 
         // Parse info calculation progress & score
         if (line.startsWith('info') && line.includes('score')) {
+          setAnalysisTimeMs(Date.now() - startTimeRef.current);
           // Extract current depth reached
           const depthMatch = line.match(/depth (\d+)/);
           if (depthMatch) {
@@ -152,6 +156,7 @@ export function useStockfish(
     // Short 30ms debounce avoids spamming stop/go during rapid navigation or auto-play
     debounceTimerRef.current = setTimeout(() => {
       if (engineRef.current) {
+        startTimeRef.current = Date.now();
         engineRef.current.postMessage('stop');
         engineRef.current.postMessage(`position fen ${activeFen}`);
         engineRef.current.postMessage(`go depth ${targetDepth}`);
@@ -165,6 +170,16 @@ export function useStockfish(
     };
   }, [activeFen, targetDepth]);
 
-  return { evaluation, engineBestMove, engineDepth };
+  const clearEngineHash = () => {
+    if (engineRef.current) {
+      engineRef.current.postMessage('ucinewgame');
+      engineRef.current.postMessage(`setoption name Hash value ${hashSize}`);
+      engineRef.current.postMessage('isready');
+      engineRef.current.postMessage(`position fen ${activeFen}`);
+      engineRef.current.postMessage(`go depth ${targetDepth}`);
+    }
+  };
+
+  return { evaluation, engineBestMove, engineDepth, analysisTimeMs, clearEngineHash };
 }
 

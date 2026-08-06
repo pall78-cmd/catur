@@ -1,17 +1,21 @@
 import React, { useState } from 'react';
-import { FileText, Check, Copy, Download } from 'lucide-react';
+import { FileText, Check, Copy, Download, Database } from 'lucide-react';
+import { savePgnToLibrary } from '../../utils/pgnStorage';
 
 interface PgnExportCardProps {
   overviewText: string;
   fullPgnText: string;
+  onOpenLibrary?: () => void;
 }
 
 export const PgnExportCard: React.FC<PgnExportCardProps> = React.memo(({
   overviewText,
   fullPgnText,
+  onOpenLibrary,
 }) => {
   const [copiedPgn, setCopiedPgn] = useState(false);
   const [showRawPgn, setShowRawPgn] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
   const handleCopyPgn = () => {
     navigator.clipboard.writeText(fullPgnText);
@@ -29,6 +33,17 @@ export const PgnExportCard: React.FC<PgnExportCardProps> = React.memo(({
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  };
+
+  const handleQuickSaveToDb = async () => {
+    try {
+      await savePgnToLibrary('', fullPgnText);
+      setSaveStatus('Tersimpan di IndexedDB!');
+      setTimeout(() => setSaveStatus(null), 2500);
+    } catch (err) {
+      console.error(err);
+      setSaveStatus('Gagal menyimpan');
+    }
   };
 
   return (
@@ -58,15 +73,15 @@ export const PgnExportCard: React.FC<PgnExportCardProps> = React.memo(({
           </button>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={handleCopyPgn}
-            className="flex-1 py-1.5 px-3 bg-neutral-900 hover:bg-neutral-800 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+            className="flex-1 min-w-[100px] py-1.5 px-3 bg-neutral-900 hover:bg-neutral-800 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
           >
             {copiedPgn ? (
               <>
                 <Check className="w-3.5 h-3.5 text-emerald-400" />
-                <span>PGN Disalin!</span>
+                <span>Disalin!</span>
               </>
             ) : (
               <>
@@ -77,12 +92,29 @@ export const PgnExportCard: React.FC<PgnExportCardProps> = React.memo(({
           </button>
           <button
             onClick={handleDownloadPgn}
-            className="flex-1 py-1.5 px-3 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors border border-neutral-200 cursor-pointer"
+            className="flex-1 min-w-[100px] py-1.5 px-3 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors border border-neutral-200 cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />
             <span>Unduh .PGN</span>
           </button>
+          <button
+            onClick={handleQuickSaveToDb}
+            className="flex-1 min-w-[110px] py-1.5 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+            title="Simpan game ini secara lokal ke IndexedDB browser"
+          >
+            <Database className="w-3.5 h-3.5 text-indigo-600" />
+            <span>{saveStatus || 'Simpan DB'}</span>
+          </button>
         </div>
+
+        {onOpenLibrary && (
+          <button
+            onClick={onOpenLibrary}
+            className="text-[11px] text-indigo-600 hover:text-indigo-800 font-medium transition-colors text-right underline cursor-pointer self-end"
+          >
+            Kelola Koleksi PGN IndexedDB &rarr;
+          </button>
+        )}
 
         {showRawPgn && (
           <div className="mt-1 p-2.5 bg-neutral-900 text-neutral-200 rounded-xl font-mono text-[11px] max-h-48 overflow-y-auto whitespace-pre-wrap border border-neutral-800 leading-relaxed">

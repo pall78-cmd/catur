@@ -1,8 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Chessboard } from 'react-chessboard';
 import { RotateCcw } from 'lucide-react';
 import { getBadgeDetails, getSquareCoordinates } from '../../utils/chessAnnotations';
-import { InteractiveTrial } from '../../types/chess';
+import { InteractiveTrial, EngineBestMove } from '../../types/chess';
 import { EvaluationBar } from './EvaluationBar';
 
 interface ChessBoardViewProps {
@@ -13,10 +13,12 @@ interface ChessBoardViewProps {
   interactiveTrial: InteractiveTrial | null;
   onResetTrial: () => void;
   onPieceDrop: (sourceSquare: string, targetSquare: string) => boolean;
+  onFlipBoard?: () => void;
   currentMoveIndex: number;
   history: any[];
   currentAnnotation: any;
   evaluation?: string;
+  engineBestMove?: EngineBestMove | null;
 }
 
 export const ChessBoardView: React.FC<ChessBoardViewProps> = React.memo(({
@@ -27,11 +29,15 @@ export const ChessBoardView: React.FC<ChessBoardViewProps> = React.memo(({
   interactiveTrial,
   onResetTrial,
   onPieceDrop,
+  onFlipBoard,
   currentMoveIndex,
   history,
   currentAnnotation,
   evaluation = '0.0',
+  engineBestMove,
 }) => {
+  const [moveFrom, setMoveFrom] = useState<string | null>(null);
+
   // Determine move evaluation badge to overlay on board for either regular history move or variation trial
   const lastMove = currentMoveIndex >= 0 ? history[currentMoveIndex] : null;
   const activeMoveForBadge = interactiveTrial ? interactiveTrial.move : lastMove;
@@ -48,7 +54,7 @@ export const ChessBoardView: React.FC<ChessBoardViewProps> = React.memo(({
     ? getSquareCoordinates(activeMoveForBadge.to, boardOrientation)
     : null;
 
-  // Lightweight highlight styles for source and target squares of the last move or trial move
+  // Lightweight highlight styles for source and target squares of the last move or trial move + Stockfish recommendation + moveFrom
   const highlightStyles = useMemo(() => {
     const styles: Record<string, React.CSSProperties> = {};
     if (activeMoveForBadge?.from && activeMoveForBadge?.to) {
@@ -61,18 +67,60 @@ export const ChessBoardView: React.FC<ChessBoardViewProps> = React.memo(({
         borderRadius: '3px',
       };
     }
+    if (engineBestMove && engineBestMove.to) {
+      styles[engineBestMove.to] = {
+        ...(styles[engineBestMove.to] || {}),
+        boxShadow: 'inset 0 0 0 3px #10b981',
+        borderRadius: '4px',
+      };
+    }
+    if (moveFrom) {
+      styles[moveFrom] = {
+        backgroundColor: 'rgba(255, 255, 0, 0.4)',
+        borderRadius: '4px',
+      };
+    }
     return styles;
-  }, [activeMoveForBadge]);
+  }, [activeMoveForBadge, engineBestMove, moveFrom]);
+
+  function onSquareClick(square: string) {
+    if (moveFrom) {
+      const success = onPieceDrop(moveFrom, square);
+      if (!success) {
+        // If clicking another piece of same color, it sets as new moveFrom, otherwise clears
+        setMoveFrom(square);
+      } else {
+        setMoveFrom(null);
+      }
+    } else {
+      setMoveFrom(square);
+    }
+  }
+
+  const chessboardOptions = useMemo(() => ({
+    position: activeFen,
+    boardOrientation: boardOrientation,
+    onPieceDrop: ({ sourceSquare, targetSquare }: any) => {
+      setMoveFrom(null); // Clear tap state if dragged
+      if (!sourceSquare || !targetSquare) return false;
+      return onPieceDrop(sourceSquare, targetSquare);
+    },
+    onSquareClick: onSquareClick,
+    darkSquareStyle: { backgroundColor: '#b58863' },
+    lightSquareStyle: { backgroundColor: '#f0d9b5' },
+    squareStyles: highlightStyles,
+    animationDurationInMs: 200,
+    allowDragging: true,
+  }), [activeFen, boardOrientation, onPieceDrop, highlightStyles, moveFrom]);
 
   const topPlayerLabel = boardOrientation === 'black' ? whitePlayer : blackPlayer;
   const topPlayerSymbol = boardOrientation === 'black' ? 'W' : 'B';
-
   const bottomPlayerLabel = boardOrientation === 'black' ? blackPlayer : whitePlayer;
   const bottomPlayerSymbol = boardOrientation === 'black' ? 'B' : 'W';
 
   return (
     <div className="bg-neutral-50 p-3.5 sm:p-4 rounded-2xl shadow-sm border border-neutral-200 relative">
-      {/* Top Player Info & Trial Reset Action */}
+      {/* Top Player Info & Actions */}
       <div className="flex justify-between items-center mb-3 px-1">
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-full bg-neutral-200 flex items-center justify-center text-xs font-bold text-neutral-600">
@@ -82,17 +130,18 @@ export const ChessBoardView: React.FC<ChessBoardViewProps> = React.memo(({
             {topPlayerLabel}
           </div>
         </div>
-
-        {interactiveTrial && (
-          <button
-            onClick={onResetTrial}
-            className="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all shadow-2xs active:scale-95 cursor-pointer"
-            title="Hapus variasi kustom & kembali ke urutan game utama"
-          >
-            <RotateCcw className="w-3.5 h-3.5 text-amber-600" />
-            <span>Hapus Variasi</span>
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {interactiveTrial && (
+            <button
+              onClick={onResetTrial}
+              className="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all shadow-2xs active:scale-95 cursor-pointer"
+              title="Hapus variasi kustom & kembali ke urutan game utama"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-amber-600" />
+              <span>Hapus Variasi</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Board & Evaluation Bar Flex Wrapper */}
@@ -104,21 +153,10 @@ export const ChessBoardView: React.FC<ChessBoardViewProps> = React.memo(({
         />
 
         {/* Board Container */}
-        <div className="flex-1 aspect-square relative rounded-lg overflow-hidden shadow-sm border border-neutral-300/60">
+        <div className="flex-1 aspect-square relative rounded-lg overflow-hidden shadow-sm border border-neutral-300/60 z-10">
           <Chessboard
-            options={{
-              id: 'tutorial-chessboard',
-              position: activeFen,
-              boardOrientation: boardOrientation,
-              onPieceDrop: ({ sourceSquare, targetSquare }) => {
-                if (!targetSquare) return false;
-                return onPieceDrop(sourceSquare, targetSquare);
-              },
-              darkSquareStyle: { backgroundColor: '#b58863' },
-              lightSquareStyle: { backgroundColor: '#f0d9b5' },
-              squareStyles: highlightStyles,
-              animationDurationInMs: 200,
-            }}
+            key={boardOrientation}
+            {...chessboardOptions}
           />
 
           {/* Dynamic Move Classification Overlay Badge */}

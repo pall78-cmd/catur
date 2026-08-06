@@ -5,9 +5,10 @@ import { ChangelogModal } from './ChangelogModal';
 interface ChessHeaderProps {
   title: string;
   detectedOpening: string | null;
+  onOpenPerformance?: () => void;
 }
 
-export const ChessHeader: React.FC<ChessHeaderProps> = React.memo(({ title, detectedOpening }) => {
+export const ChessHeader: React.FC<ChessHeaderProps> = React.memo(({ title, detectedOpening, onOpenPerformance }) => {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showChangelog, setShowChangelog] = useState(false);
 
@@ -43,7 +44,7 @@ export const ChessHeader: React.FC<ChessHeaderProps> = React.memo(({ title, dete
           className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 rounded-full text-xs font-semibold transition-colors cursor-pointer"
         >
           <History className="w-3.5 h-3.5 text-emerald-600" />
-          <span>Patch Notes v1.6.0</span>
+          <span>Patch Notes v1.8.0</span>
         </button>
       </div>
 
@@ -61,7 +62,7 @@ export const ChessHeader: React.FC<ChessHeaderProps> = React.memo(({ title, dete
           <div className="grid grid-cols-2 gap-1.5 text-left text-[11px]">
             <div><kbd className="px-1.5 py-0.5 bg-neutral-800 rounded font-mono border border-neutral-700">← / →</kbd> Langkah Sebelum/Sesudah</div>
             <div><kbd className="px-1.5 py-0.5 bg-neutral-800 rounded font-mono border border-neutral-700">Spasi</kbd> Putar / Jeda Otomatis</div>
-            <div><kbd className="px-1.5 py-0.5 bg-neutral-800 rounded font-mono border border-neutral-700">F</kbd> Balik Rotasi Papan</div>
+            <div><kbd className="px-1.5 py-0.5 bg-neutral-800 rounded font-mono border border-neutral-700">F / Z</kbd> Balik Rotasi Papan</div>
             <div><kbd className="px-1.5 py-0.5 bg-neutral-800 rounded font-mono border border-neutral-700">Home / End</kbd> Awal / Akhir Game</div>
           </div>
         </div>

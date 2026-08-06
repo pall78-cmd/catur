@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, AlertTriangle, Zap, CheckCircle2 } from 'lucide-react';
+import { Sparkles, AlertTriangle, Zap, CheckCircle2, Activity } from 'lucide-react';
 import { DynamicAnnotationResult, EngineBestMove } from '../../types/chess';
 
 interface ActiveMoveCardProps {
@@ -10,6 +10,7 @@ interface ActiveMoveCardProps {
   engineBestMove: EngineBestMove | null;
   interactiveTrial: any;
   engineDepth?: number;
+  onOpenPerformance?: () => void;
 }
 
 export const ActiveMoveCard: React.FC<ActiveMoveCardProps> = React.memo(({
@@ -20,6 +21,7 @@ export const ActiveMoveCard: React.FC<ActiveMoveCardProps> = React.memo(({
   engineBestMove,
   interactiveTrial,
   engineDepth,
+  onOpenPerformance,
 }) => {
   const getBadgeColorClass = (evalType?: string) => {
     switch (evalType) {
@@ -64,9 +66,14 @@ export const ActiveMoveCard: React.FC<ActiveMoveCardProps> = React.memo(({
         {/* Engine Evaluation & Move Quality Badge */}
         <div className="flex items-center gap-1.5">
           {evaluation && (
-            <div className="flex items-center gap-1 px-2 py-0.5 bg-neutral-800 rounded-md border border-neutral-700/80">
+            <button
+              onClick={onOpenPerformance}
+              className="flex items-center gap-1 px-2 py-0.5 bg-neutral-800 hover:bg-neutral-700/80 transition-colors rounded-md border border-neutral-700/80 cursor-pointer group"
+              title="Buka Dashboard Performa Engine & Memori Browser"
+            >
+              <Activity className="w-3 h-3 text-indigo-400 group-hover:animate-pulse" />
               <span className="text-[9px] text-neutral-400 font-mono uppercase">
-                {engineDepth && engineDepth > 0 ? `SF • D${engineDepth}` : 'SF • D15'}
+                {engineDepth && engineDepth > 0 ? `SF18 • D${engineDepth}` : 'SF18 • D18'}
               </span>
               <span className={`text-xs font-bold font-mono ${
                 evaluation.startsWith('+') ? 'text-emerald-400' :
@@ -74,7 +81,7 @@ export const ActiveMoveCard: React.FC<ActiveMoveCardProps> = React.memo(({
               }`}>
                 {evaluation}
               </span>
-            </div>
+            </button>
           )}
           {(lastMove || interactiveTrial) && currentAnnotation?.evaluation && (
             <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-md ${getBadgeColorClass(currentAnnotation.evaluation)}`}>
@@ -86,10 +93,16 @@ export const ActiveMoveCard: React.FC<ActiveMoveCardProps> = React.memo(({
 
       {/* Main Move Narrative & Annotation */}
       {currentMoveIndex === -1 && !interactiveTrial ? (
-        <div className="py-1">
-          <p className="text-neutral-300 text-xs leading-relaxed">
-            Gunakan tombol <strong className="text-white font-semibold">Putar / Langkah</strong> di bawah atau panah keyboard untuk menelusuri analisis.
+        <div className="py-1 flex flex-col gap-1.5">
+          <p className="text-neutral-200 text-xs leading-relaxed">
+            <strong className="text-white font-semibold">Posisi Awal Catur (Start Position).</strong> Siap menganalisis game kustom Anda. Tempelkan PGN/FEN di tab <strong className="text-amber-300 font-semibold">Impor & Ekspor</strong>, buka Koleksi Tersimpan, atau jalankan langkah pertama pada papan catur.
           </p>
+          {engineBestMove && (
+            <div className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-mono pt-0.5">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>Rekomendasi Pembuka Mesin: {engineBestMove.from} → {engineBestMove.to}</span>
+            </div>
+          )}
         </div>
       ) : interactiveTrial ? (
         <div className="flex flex-col gap-1.5">
