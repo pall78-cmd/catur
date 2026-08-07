@@ -96,6 +96,13 @@ export default function ChessTutorial() {
     setPerMoveEvalMap({});
   }, [activePgn]);
 
+  // Auto-run full background analysis for custom/external PGNs loaded from file/library
+  useEffect(() => {
+    if (activePgn && activePgn !== pgn && !isCustomMode) {
+      runAnalysis(activePgn);
+    }
+  }, [activePgn, isCustomMode, runAnalysis]);
+
   // Parsed game based on activePgn
   const fullGame = useMemo(() => {
     const cg = new Chess();

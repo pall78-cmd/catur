@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { getPositionEvalSymbol } from '../../utils/chessAnnotations';
 
 interface EvaluationBarProps {
   evaluation: string;
@@ -65,7 +66,7 @@ export const EvaluationBar: React.FC<EvaluationBarProps> = React.memo(({
   return (
     <div
       className="w-3.5 sm:w-4.5 rounded-md overflow-hidden bg-neutral-900 border border-neutral-300/80 shadow-xs flex flex-col justify-between relative select-none shrink-0 transition-all duration-300"
-      title={`Evaluasi Posisi: ${displayText}`}
+      title={`Evaluasi Posisi: ${displayText} ${getPositionEvalSymbol(displayText)}`}
     >
       {/* Top Section */}
       <div

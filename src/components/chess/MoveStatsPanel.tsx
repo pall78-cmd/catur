@@ -102,7 +102,7 @@ export const MoveStatsPanel: React.FC<MoveStatsPanelProps> = React.memo(({
         </div>
       </div>
 
-      {!isDefaultGame && totalMoves > 0 && (
+      {totalMoves > 0 && (
         <div className="flex flex-col gap-2 mt-2 pt-2 border-t border-neutral-100">
           <div className="flex justify-between items-center">
             <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">
@@ -122,7 +122,7 @@ export const MoveStatsPanel: React.FC<MoveStatsPanelProps> = React.memo(({
                 className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-indigo-50 border border-indigo-200/80 rounded-xl text-indigo-700 text-xs font-bold shadow-xs cursor-not-allowed"
               >
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
-                <span>Menganalisis Permainan Kustom...</span>
+                <span>Menganalisis Permainan...</span>
               </button>
               <div className="w-full h-1.5 bg-neutral-100 rounded-full overflow-hidden">
                 <div

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Sparkles, AlertTriangle, Zap, CheckCircle2, Activity } from 'lucide-react';
 import { DynamicAnnotationResult, EngineBestMove } from '../../types/chess';
+import { getPositionEvalSymbol } from '../../utils/chessAnnotations';
 
 interface ActiveMoveCardProps {
   currentMoveIndex: number;
@@ -79,7 +80,7 @@ export const ActiveMoveCard: React.FC<ActiveMoveCardProps> = React.memo(({
                 evaluation.startsWith('+') ? 'text-emerald-400' :
                 evaluation.startsWith('-') ? 'text-rose-400' : 'text-neutral-200'
               }`}>
-                {evaluation}
+                {evaluation} <span className="text-[10px] opacity-90 font-sans ml-0.5">{getPositionEvalSymbol(evaluation)}</span>
               </span>
             </button>
           )}
@@ -115,7 +116,7 @@ export const ActiveMoveCard: React.FC<ActiveMoveCardProps> = React.memo(({
               {interactiveTrial.move.color === 'w' ? 'Giliran Putih' : 'Giliran Hitam'}
             </span>
           </div>
-          <p className="text-neutral-200 text-xs leading-relaxed">
+          <p className="text-neutral-200 text-xs leading-relaxed whitespace-pre-line">
             {currentAnnotation?.annotation || `Variasi kustom dari langkah ${interactiveTrial.move.san}. Stockfish sedang menganalisis implikasi taktis posisi ini.`}
           </p>
 
@@ -145,7 +146,7 @@ export const ActiveMoveCard: React.FC<ActiveMoveCardProps> = React.memo(({
             </span>
           </div>
 
-          <p className="text-neutral-200 text-xs leading-relaxed">
+          <p className="text-neutral-200 text-xs leading-relaxed whitespace-pre-line">
             {currentAnnotation?.annotation}
           </p>
 

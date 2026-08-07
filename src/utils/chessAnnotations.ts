@@ -1,3 +1,4 @@
+import { Chess } from "chess.js";
 import { annotations, overview } from '../data/analysis';
 import { 
   DynamicAnnotationResult, 
@@ -12,6 +13,7 @@ import { classifyMove, LABEL_ID } from '../lib/analysis/moveClassifier';
 import { explainMove } from '../lib/analysis/explainer';
 import { findMotifs } from '../lib/analysis/motifs';
 import { isBookMove, findOpening } from '../lib/analysis/openingBook';
+import { getHeuristicEvaluation } from '../lib/analysis/stockfishEngine';
 
 export function parseToCpAndMate(evalStr?: string): { cp: number | null, mate: number | null } {
   if (!evalStr || evalStr.includes('Mengevaluasi') || evalStr.includes('Gagal')) {
@@ -87,7 +89,50 @@ export function getDynamicAnnotation(
   const prevMoveData = (moveIndex > 0 && perMoveEvalMap) ? perMoveEvalMap[moveIndex - 1] : undefined;
   const prevEvalStr = prevMoveData?.evaluation || (currentActiveMoveIndex === moveIndex - 1 ? evalStr : '');
 
-  const isBest = !!(effectiveBestMove && effectiveBestMove.from === fromSq && effectiveBestMove.to === toSq);
+  // Fallback to on-the-fly heuristic if evaluation is missing
+  let finalEvalStr = effectiveEvalStr;
+  let finalBestMove = effectiveBestMove;
+  
+  if (!finalEvalStr || finalEvalStr.includes('Mengevaluasi') || finalEvalStr.includes('Gagal')) {
+    try {
+      if (move && move.after) {
+        const chessAfter = new Chess(move.after);
+        const heur = getHeuristicEvaluation(chessAfter);
+        if (heur.mate !== null) {
+          finalEvalStr = heur.mate > 0 ? `+M${Math.abs(heur.mate)}` : `-M${Math.abs(heur.mate)}`;
+        } else {
+          const scoreVal = heur.cp / 100;
+          finalEvalStr = scoreVal > 0 ? `+${scoreVal.toFixed(2)}` : scoreVal.toFixed(2);
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  let finalPrevEvalStr = prevEvalStr;
+  if (!finalPrevEvalStr || finalPrevEvalStr.includes('Mengevaluasi') || finalPrevEvalStr.includes('Gagal')) {
+    if (moveIndex > 0) {
+      try {
+        if (move && move.before) {
+          const chessBefore = new Chess(move.before);
+          const heur = getHeuristicEvaluation(chessBefore);
+          if (heur.mate !== null) {
+            finalPrevEvalStr = heur.mate > 0 ? `+M${Math.abs(heur.mate)}` : `-M${Math.abs(heur.mate)}`;
+          } else {
+            const scoreVal = heur.cp / 100;
+            finalPrevEvalStr = scoreVal > 0 ? `+${scoreVal.toFixed(2)}` : scoreVal.toFixed(2);
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+    } else {
+      finalPrevEvalStr = '+0.30'; // Baseline start evaluation
+    }
+  }
+
+  const isBest = !!(finalBestMove && finalBestMove.from === fromSq && finalBestMove.to === toSq);
 
   // Check for embedded PGN comments/annotations
   let pgnCommentAnn = '';
@@ -102,8 +147,8 @@ export function getDynamicAnnotation(
   }
 
   // Calculate eval delta
-  const currEvalVal = parseToCpAndMate(effectiveEvalStr);
-  const prevEvalVal = moveIndex > 0 ? parseToCpAndMate(prevEvalStr) : { cp: 30, mate: null }; // Default start evaluation +0.3 (30cp)
+  const currEvalVal = parseToCpAndMate(finalEvalStr);
+  const prevEvalVal = parseToCpAndMate(finalPrevEvalStr);
 
   let evalLoss: number | null = null;
   let wpBefore: number | null = null;
@@ -133,11 +178,28 @@ export function getDynamicAnnotation(
   // Evaluation classification
   let evaluation: string = baseAnn?.evaluation || pgnCommentAnn || '';
 
+  // Analyze tactical motifs
+  const motifsList: string[] = [];
+  try {
+    if (move.after) {
+      const chessAfter = new Chess(move.after);
+      const detected = findMotifs(chessAfter, move.to, move.color);
+      if (detected && Array.isArray(detected)) {
+        motifsList.push(...detected);
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+
   if (!evaluation) {
     const isCheck = move.san.includes('+');
     const isMate = move.san.includes('#');
     const isDraw = move.san.includes('=');
-    const isMateSeq = effectiveEvalStr && effectiveEvalStr.includes('M');
+    const isMateSeq = finalEvalStr && finalEvalStr.includes('M');
+
+    if (isCheck && !motifsList.includes('check')) motifsList.push('check');
+    if (move.san.includes('x') && !motifsList.includes('capture')) motifsList.push('capture');
 
     if (isMate) {
       evaluation = 'Skakmat';
@@ -145,20 +207,17 @@ export function getDynamicAnnotation(
       evaluation = 'Remis';
     } else if (move.isForced || (isMateSeq && isCheck && move.piece === 'k')) {
       evaluation = 'Langkah Paksaan';
-    } else if (effectiveEvalStr && wpBefore !== null && wpAfter !== null) {
-      const { label } = classifyMove(wpBefore, wpAfter, isBest, false);
+    } else if (finalEvalStr && wpBefore !== null && wpAfter !== null) {
+      const { label } = classifyMove(wpBefore, wpAfter, isBest, false, undefined, motifsList);
       engLabel = label;
       evaluation = (LABEL_ID as any)[label] || label;
 
       // Print detailed Indonesian developer log
       console.log(`%c[CHESS ANALYZER LOG] Langkah #${moveIndex + 1} (${isWhite ? 'Putih' : 'Hitam'}): ${move.san}`, 'font-weight: bold; color: #6366f1;');
-      console.log(`  - Posisi Sebelum (Langkah #${moveIndex}): ${prevEvalStr ? `"${prevEvalStr}"` : 'KOSONG (Menggunakan fallback +0.00)'} (Win%: ${wpBefore.toFixed(1)}%)`);
-      console.log(`  - Posisi Sesudah (Langkah #${moveIndex + 1}): "${effectiveEvalStr}" (Win%: ${wpAfter.toFixed(1)}%)`);
+      console.log(`  - Posisi Sebelum (Langkah #${moveIndex}): ${finalPrevEvalStr ? `"${finalPrevEvalStr}"` : 'KOSONG (Menggunakan fallback +0.00)'} (Win%: ${wpBefore.toFixed(1)}%)`);
+      console.log(`  - Posisi Sesudah (Langkah #${moveIndex + 1}): "${finalEvalStr}" (Win%: ${wpAfter.toFixed(1)}%)`);
       console.log(`  - Selisih Win% (winPercentLoss): ${evalLoss !== null ? `${evalLoss.toFixed(1)}%` : 'N/A'}`);
       console.log(`  - Klasifikasi: "${label}" (Translasi ID: "${evaluation}")`);
-      if (!prevEvalStr && moveIndex > 0) {
-        console.warn(`  [PERINGATAN] Evaluasi langkah sebelumnya kosong. winPercentLoss dihitung terhadap baseline +0.00, sehingga klasifikasi Blunder/Kesalahan mungkin tidak akurat.`);
-      }
     } else if (isBest) {
       engLabel = 'Best';
       evaluation = 'Terbaik';
@@ -189,7 +248,7 @@ export function getDynamicAnnotation(
     winPercentLoss: evalLoss || 0,
     isBookMove: evaluation === 'Teori',
     openingName: null,
-    motifs: [], // Without full game context in this loop, we skip deep motifs
+    motifs: motifsList,
     bestLineSan: [] 
   });
 
@@ -206,6 +265,24 @@ export function getDynamicAnnotation(
   };
 }
 
+export function getPositionEvalSymbol(evalStr?: string): string {
+  if (!evalStr || evalStr.includes('Mengevaluasi') || evalStr.includes('Gagal')) return '';
+  
+  if (evalStr.includes('M')) {
+    // Mate sequence is winning advantage
+    return evalStr.startsWith('-') ? '-/+' : '+/-';
+  }
+  
+  const num = parseFloat(evalStr.replace('+', '').trim());
+  if (isNaN(num)) return '';
+  
+  if (num >= 2.0) return '+/-'; // Putih memliki keunggulan menang (White winning)
+  if (num <= -2.0) return '-/+'; // Hitam memiliki keunggulan menang (Black winning)
+  if (num >= 1.0) return '±'; // Putih unggul jelas (White clearly better)
+  if (num <= -1.0) return '∓'; // Hitam unggul jelas (Black clearly better)
+  return '='; // Posisi seimbang
+}
+
 export function getBadgeDetails(evaluation?: string, isCheck?: boolean, isMate?: boolean) {
   if (isMate || evaluation === 'Skakmat') {
     return { icon: '👑', label: '#', badgeClass: 'bg-amber-400 text-neutral-950 font-black shadow-amber-400/50 ring-2 ring-amber-300 animate-pulse' };
@@ -220,6 +297,9 @@ export function getBadgeDetails(evaluation?: string, isCheck?: boolean, isMate?:
     case 'Langkah Brilian':
     case 'Brilian': 
       return { icon: '💎', label: '!!', badgeClass: 'bg-cyan-500 text-white shadow-cyan-500/50 ring-2 ring-cyan-300 animate-pulse' };
+    case 'Langkah Menarik':
+    case 'Menarik': 
+      return { icon: '🌀', label: '!?', badgeClass: 'bg-purple-600 text-white shadow-purple-600/50 ring-2 ring-purple-300' };
     case 'Langkah Terbaik':
     case 'Terbaik': 
       return { icon: '⭐', label: '★', badgeClass: 'bg-emerald-600 text-white shadow-emerald-600/50' };

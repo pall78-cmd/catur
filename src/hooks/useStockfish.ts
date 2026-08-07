@@ -46,7 +46,8 @@ export function useStockfish(
   useEffect(() => {
     let worker: Worker | null = null;
     try {
-      worker = new Worker('/stockfish.js');
+      const workerUrl = new URL('/stockfish.js', window.location.origin).href;
+      worker = new Worker(workerUrl);
       engineRef.current = worker;
 
       // UCI Engine Protocol Configuration
@@ -86,15 +87,18 @@ export function useStockfish(
           return;
         }
 
-        // Parse info calculation progress & score
-        if (line.startsWith('info') && line.includes('score')) {
-          setAnalysisTimeMs(Date.now() - startTimeRef.current);
-          // Extract current depth reached
-          const depthMatch = line.match(/depth (\d+)/);
+        // Parse any info calculation progress depth
+        if (line.startsWith('info')) {
+          const depthMatch = line.match(/\bdepth (\d+)\b/);
           if (depthMatch) {
             const currentD = parseInt(depthMatch[1], 10);
             setEngineDepth(currentD);
           }
+        }
+
+        // Parse info calculation progress & score
+        if (line.startsWith('info') && line.includes('score')) {
+          setAnalysisTimeMs(Date.now() - startTimeRef.current);
 
           const now = Date.now();
           // Throttle state dispatches to preserve 60 FPS UI rendering performance

@@ -36,16 +36,24 @@ export const MoveListTable: React.FC<MoveListTableProps> = React.memo(({
     switch (evalType) {
       case 'Brilian':
       case 'Langkah Brilian':
-        return <span className="ml-1 px-1 py-0.2 text-[9px] bg-cyan-100 text-cyan-800 rounded font-bold">💎</span>;
+        return <span className="ml-1 px-1.5 py-0.5 text-[9px] bg-cyan-100 text-cyan-800 rounded-md font-bold shrink-0" title="!! Langkah Brilian (Jenius/Pengorbanan)">💎 !!</span>;
       case 'Terbaik':
       case 'Langkah Terbaik':
-        return <span className="ml-1 px-1 py-0.2 text-[9px] bg-emerald-100 text-emerald-800 rounded font-bold">⭐</span>;
-      case 'Blunder':
-        return <span className="ml-1 px-1 py-0.2 text-[9px] bg-red-100 text-red-800 rounded font-bold">💥</span>;
-      case 'Kesalahan':
-        return <span className="ml-1 px-1 py-0.2 text-[9px] bg-orange-100 text-orange-800 rounded font-bold">❓</span>;
+        return <span className="ml-1 px-1.5 py-0.5 text-[9px] bg-emerald-100 text-emerald-800 rounded-md font-bold shrink-0" title="! Langkah Terbaik">⭐ !</span>;
+      case 'Bagus':
+      case 'Langkah Bagus':
+        return <span className="ml-1 px-1.5 py-0.5 text-[9px] bg-green-100 text-green-800 rounded-md font-bold shrink-0" title="! Langkah Bagus">👍 !</span>;
+      case 'Menarik':
+      case 'Langkah Menarik':
+        return <span className="ml-1 px-1.5 py-0.5 text-[9px] bg-purple-100 text-purple-800 rounded-md font-bold shrink-0" title="!? Langkah Menarik (Spekulatif/Risiko)">🌀 !?</span>;
+      case 'Teori':
+        return <span className="ml-1 px-1.5 py-0.5 text-[9px] bg-blue-100 text-blue-800 rounded-md font-bold shrink-0" title="📖 Buku Teori">📖</span>;
       case 'Ketidakakuratan':
-        return <span className="ml-1 px-1 py-0.2 text-[9px] bg-yellow-100 text-yellow-800 rounded font-bold">⚠️</span>;
+        return <span className="ml-1 px-1.5 py-0.5 text-[9px] bg-yellow-100 text-yellow-800 rounded-md font-bold shrink-0" title="?! Ketidakakuratan (Kurang Akurat)">⚠️ ?!</span>;
+      case 'Kesalahan':
+        return <span className="ml-1 px-1.5 py-0.5 text-[9px] bg-orange-100 text-orange-800 rounded-md font-bold shrink-0" title="? Kesalahan (Blunder Kecil/Hilang Tempo)">❓ ?</span>;
+      case 'Blunder':
+        return <span className="ml-1 px-1.5 py-0.5 text-[9px] bg-red-100 text-red-800 rounded-md font-bold shrink-0" title="?? Blunder Fatal">💥 ??</span>;
       default:
         return null;
     }
