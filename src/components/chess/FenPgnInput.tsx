@@ -50,7 +50,7 @@ export const FenPgnInput: React.FC<FenPgnInputProps> = React.memo(({
   onOpenLibrary,
 }) => {
   return (
-    <div className="bg-white p-4 rounded-2xl shadow-xs border border-neutral-200/80 flex flex-col gap-2.5">
+    <div className="bg-white p-3 sm:p-3.5 rounded-xl shadow-2xs border border-neutral-200/90 flex flex-col gap-2.5">
       <div className="flex items-center justify-between">
         <label className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider block">
           Muat Posisi / Game (FEN / PGN)

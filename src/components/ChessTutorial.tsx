@@ -24,7 +24,6 @@ import { ActiveMoveCard } from './chess/ActiveMoveCard';
 import { MoveStatsPanel } from './chess/MoveStatsPanel';
 import { MoveListTable } from './chess/MoveListTable';
 import { PgnExportCard } from './chess/PgnExportCard';
-import { StockfishWidget } from './chess/StockfishWidget';
 import { PgnLibraryModal } from './chess/PgnLibraryModal';
 import { PromotionModal } from './chess/PromotionModal';
 
@@ -34,6 +33,7 @@ export default function ChessTutorial() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [boardOrientation, setBoardOrientation] = useState<'white' | 'black'>('white');
   const [isMuted, setIsMuted] = useState(false);
+  const [playSpeedMs, setPlaySpeedMs] = useState(2800);
 
   const [activePgn, setActivePgn] = useState(pgn);
   const [customInput, setCustomInput] = useState('');
@@ -234,13 +234,13 @@ export default function ChessTutorial() {
         } else {
           setIsPlaying(false);
         }
-      }, 1800);
+      }, playSpeedMs);
     }
 
     return () => {
       if (timer) clearInterval(timer);
     };
-  }, [isPlaying, currentMoveIndex, history.length, goToMove]);
+  }, [isPlaying, currentMoveIndex, history.length, goToMove, playSpeedMs]);
 
   // Keyboard navigation shortcuts
   useEffect(() => {
@@ -564,7 +564,7 @@ export default function ChessTutorial() {
   }, []);
 
   return (
-    <div className="max-w-7xl mx-auto p-3 sm:p-6 font-sans select-none text-neutral-900">
+    <div className="max-w-[1120px] mx-auto p-3 sm:p-5 font-sans select-none text-neutral-900">
       {/* 1. Page Header */}
       <ChessHeader
         title={activeOverview.title}
@@ -572,10 +572,10 @@ export default function ChessTutorial() {
       />
 
       {/* Main Grid Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 items-start">
         
         {/* Left Column: Interactive Board & Active Move Analysis */}
-        <div className="lg:col-span-7 flex flex-col gap-4 relative">
+        <div className="lg:col-span-7 flex flex-col gap-3 relative">
           <ChessBoardView
             activeFen={activeFen}
             boardOrientation={boardOrientation}
@@ -614,17 +614,10 @@ export default function ChessTutorial() {
             interactiveTrial={interactiveTrial}
             engineDepth={engineDepth}
           />
-
-          {/* Stockfish 18 Engine Memory & Performance Widget */}
-          <StockfishWidget
-            engineDepth={engineDepth}
-            analysisTimeMs={analysisTimeMs}
-            engineBestMove={engineBestMove}
-          />
         </div>
 
         {/* Right Column: Playback Controls, FEN/PGN Input, Move Quality Stats, Move List & PGN Export */}
-        <div className="lg:col-span-5 flex flex-col gap-4">
+        <div className="lg:col-span-5 flex flex-col gap-3">
           {/* Playback Controls */}
           <ChessControls
             currentMoveIndex={currentMoveIndex}
@@ -632,6 +625,7 @@ export default function ChessTutorial() {
             isPlaying={isPlaying}
             isMuted={isMuted}
             boardOrientation={boardOrientation}
+            playSpeedMs={playSpeedMs}
             onFirst={handleFirstMove}
             onPrev={handlePrevMove}
             onTogglePlay={handleTogglePlay}
@@ -639,6 +633,7 @@ export default function ChessTutorial() {
             onLast={handleLastMove}
             onFlipBoard={handleFlipBoard}
             onToggleMute={handleToggleMute}
+            onSpeedChange={setPlaySpeedMs}
             onSliderChange={(e) => {
               const val = parseInt(e.target.value, 10);
               setIsCustomMode(false);

@@ -167,6 +167,20 @@ export const ActiveMoveCard: React.FC<ActiveMoveCardProps> = React.memo(({
           )}
         </div>
       )}
+
+      {/* Sleek Compact Engine Status Footer Bar */}
+      <div className="mt-1 pt-2 border-t border-neutral-800 flex items-center justify-between text-[10px] text-neutral-400 font-mono">
+        <div className="flex items-center gap-2">
+          <span className="flex items-center gap-1 text-emerald-400 font-semibold">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Stockfish 18
+          </span>
+          <span className="text-neutral-500">•</span>
+          <span>Kedalaman D{engineDepth || 18}</span>
+        </div>
+        <div className="flex items-center gap-2 text-neutral-400">
+          <span>32MB Memori</span>
+        </div>
+      </div>
     </div>
   );
 });

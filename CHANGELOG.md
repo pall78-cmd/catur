@@ -2,6 +2,22 @@
 
 Semua perubahan pada proyek ini akan dicatat di dalam berkas ini.
 
+## [2.0.0] - 2026-08-07
+### Major Release & UI Refinement
+- **Pembaruan Desain Kontrol Putar (Compact Control Layout):** Penataan ulang dan rekonstruksi total pada komponen tombol navigasi permainan (`ChessControls`). Seluruh tombol (`Awal`, `Sebelumnya`, `Putar/Jeda`, `Selanjutnya`, `Akhir`) kini digabungkan secara rapi dalam satu kapsul terpadu (*Unified Control Cluster*) sehingga tidak ada tombol yang melenceng, terdorong, atau keluar dari batas kotak UI.
+- **Pencegahan Tumpang Tindih & Z-Index Clean Code:** Menghapus z-index kaku dan tumpang tindih layout. Memastikan tata letak elemen visual berjalan secara proporsional dan fleksibel (*zero z-index collision*) di berbagai resolusi layar (Mobile, Tablet, Desktop).
+- **Integrasi Informasi Mesin Stockfish Ringkas:** Menyatukan indikator performa Stockfish 18 (kedalaman kalkulasi, alokasi memori 32MB) ke dalam footer status ringkas di kartu langkah aktif (`ActiveMoveCard`) untuk menyederhanakan ruang tampilan tanpa mengurangi fungsionalitas.
+- **Pembersihan Bug & Optimasi Besar Sistem:** Memperbaiki bug evaluasi promosi bidak, menyelaraskan sinkronisasi status papan, dan melakukan optimasi menyeluruh pada struktur kode TypeScript agar aplikasi berjalan sangat ringan, cepat, dan stabil.
+
+## [1.10.0] - 2026-08-07
+### Added
+- **Pemisahan Statistik Kualitas Langkah (Bidak Putih vs Bidak Hitam):** Statistik kualitas langkah (Brilian, Terbaik, Bagus, Teori, Inakurasi, Kesalahan, Blunder, Paksaan, Terlewat) kini dipisah secara eksplisit antara Bidak Putih dan Bidak Hitam. Dilengkapi dengan tampilan *Side-by-Side Comparison* dan filter tab (`Bandingkan`, `Putih`, `Hitam`, `Total`) untuk pemilahan dan kemudahan analisis performa tiap pemain.
+- **Pengaturan & Kelonggaran Laju Putar Analisis (Playback Speed Selector):** Menambah kelonggaran laju putar otomatis analisis dari 1.8 detik menjadi 2.8 detik secara default agar pengguna dapat melihat langkah per langkah dengan santai dan nyaman. Menyediakan dropdown pemilih kecepatan putar (`Santai 3.8s`, `Normal 2.8s`, `Cepat 1.8s`, `Sangat Cepat 1s`).
+
+### Fixed
+- **Perbaikan Evaluasi Promosi Bidak (Pawn Promotion Fix):** Memperbaiki bug kritis di mana langkah promosi bidak (seperti `e8=Q` atau `a8=N`) dibaca secara salah sebagai "Remis" karena kehadiran karakter `=`. Evaluasi remis kini didasarkan secara presisi pada pemeriksaan status papan catur nyata (`isDraw()`, `isStalemate()`, repetition, material).
+- **Optimasi & Refactoring Sistem:** Melakukan pembersihan basis kode, perapian tipe data, penanganan exception, dan stabilisasi performa jangka panjang agar sistem terjaga dan mudah dikembangkan.
+
 ## [1.9.0] - 2026-08-06
 ### Added
 - **Komentar Taktis Alami (Fluid Tactical Commentary):** Menghapus format lama berupa header kaku ("Analisis Objektif" & "Analisis Subjektif") yang terpisah. Komentar langkah kini disajikan dalam satu narasi mengalir yang natural, menyatu dengan kalkulasi deviasi persentase peluang kemenangan dari Stockfish jika ada penurunan akurasi.

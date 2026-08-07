@@ -205,7 +205,20 @@ export function getDynamicAnnotation(
   if (!evaluation) {
     const isCheck = move.san.includes('+');
     const isMate = move.san.includes('#');
-    const isDraw = move.san.includes('=');
+    let isDraw = false;
+
+    // Check actual game state for draws (stalemate, 3-fold repetition, insufficient material)
+    if (move.after) {
+      try {
+        const chessAfter = new Chess(move.after);
+        if (chessAfter.isDraw()) {
+          isDraw = true;
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
     const isMateSeq = finalEvalStr && finalEvalStr.includes('M');
 
     if (isCheck && !motifsList.includes('check')) motifsList.push('check');

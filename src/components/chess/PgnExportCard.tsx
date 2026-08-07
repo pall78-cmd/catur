@@ -47,7 +47,7 @@ export const PgnExportCard: React.FC<PgnExportCardProps> = React.memo(({
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 p-4 flex flex-col gap-3">
+    <div className="bg-white rounded-xl shadow-2xs border border-neutral-200/90 p-3 sm:p-3.5 flex flex-col gap-2.5">
       <div>
         <h2 className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5 border-b border-neutral-100 pb-1.5">
           Ringkasan Game

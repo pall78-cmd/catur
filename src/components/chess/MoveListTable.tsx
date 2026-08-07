@@ -60,8 +60,8 @@ export const MoveListTable: React.FC<MoveListTableProps> = React.memo(({
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden flex flex-col max-h-[280px]">
-      <div className="p-3 border-b border-neutral-100 bg-neutral-50 flex items-center justify-between">
+    <div className="bg-white rounded-xl shadow-2xs border border-neutral-200/90 overflow-hidden flex flex-col max-h-[260px]">
+      <div className="px-3 py-2 border-b border-neutral-100 bg-neutral-50/80 flex items-center justify-between">
         <h3 className="font-bold text-neutral-800 text-xs uppercase tracking-wider">
           Daftar Langkah
         </h3>

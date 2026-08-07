@@ -8,8 +8,56 @@ interface ChangelogModalProps {
 
 const CHANGELOG_DATA = [
   {
+    version: 'v2.0.0',
+    date: 'Major Release (v2.0.0)',
+    tag: 'UI Compact, Refinement & Optimasi Performa',
+    tagColor: 'bg-emerald-100 text-emerald-900 border-emerald-200',
+    changes: [
+      {
+        title: 'Pembaruan Desain Kontrol Navigasi (Compact Play Controls)',
+        desc: 'Merekonstruksi tata letak tombol kontrol navigasi (Awal, Sebelumnya, Putar/Jeda, Selanjutnya, Akhir) ke dalam satu kapsul terpadu (Unified Control Cluster). Memastikan seluruh tombol dan dropdown kecepatan tersusun rapi tanpa risiko melenceng atau keluar dari batas container.',
+      },
+      {
+        title: 'Pencegahan Tumpang Tindih & Layout Tanpa Bentrok Z-Index',
+        desc: 'Merapikan hirarki visual dan menghapus z-index kaku. Memastikan interaksi tombol, modal, dan elemen papan catur berjalan bersih dan responsif di seluruh ukuran layar.',
+      },
+      {
+        title: 'Integrasi Indikator Mesin Stockfish Ringkas',
+        desc: 'Menyatukan status aktif Stockfish 18 dan indikator kedalaman kalkulasi langsung pada footer kartu langkah aktif untuk tampilan yang lebih bersih, hemat ruang, dan efisien.',
+      },
+      {
+        title: 'Pembersihan Bug & Optimasi Sistem Skala Besar',
+        desc: 'Memperbaiki bug evaluasi promosi bidak (Pawn Promotion), menyelaraskan sinkronisasi status papan, serta merapikan struktur kode TypeScript agar responsif dan bebas hambatan.',
+      },
+    ],
+  },
+  {
+    version: 'v1.10.0',
+    date: 'Rilis Sebelumnya (v1.10.0)',
+    tag: 'Pemisahan Statistik Bidak & Perbaikan Promosi',
+    tagColor: 'bg-emerald-100 text-emerald-900 border-emerald-200',
+    changes: [
+      {
+        title: 'Perbaikan Evaluasi Promosi Bidak (Pawn Promotion)',
+        desc: 'Memperbaiki bug di mana langkah promosi bidak (misal e8=Q) dibaca secara salah sebagai "Remis" karena deteksi simbol "=". Evaluasi remis kini didasarkan secara presisi pada pemeriksaan status papan catur nyata (stalemate, 3-fold repetition, material).',
+      },
+      {
+        title: 'Pemisahan Statistik Kualitas Langkah (Putih vs Hitam)',
+        desc: 'Statistik kualitas langkah (Brilian, Terbaik, Bagus, Teori, Inakurasi, Kesalahan, Blunder, Paksaan, Terlewat) kini dipisah secara mandiri antara Bidak Putih dan Bidak Hitam dengan mode Side-by-Side Comparison dan filter tab.',
+      },
+      {
+        title: 'Pengaturan & Kelonggaran Laju Putar Analisis',
+        desc: 'Laju otomatis putar langkah dinaikkan menjadi 2.8 detik secara default agar nyaman dinikmati langkah demi langkah, dilengkapi dropdown pemilih kecepatan (Santai 3.8s, Normal 2.8s, Cepat 1.8s, Sangat Cepat 1s).',
+      },
+      {
+        title: 'Perapian & Optimasi Basis Kode Jangka Panjang',
+        desc: 'Merapi dan menstrukturkan ulang sourcecode, memperkuat penanganan tipe TypeScript, serta memangkas potensi error pada evaluasi analisis catur.',
+      },
+    ],
+  },
+  {
     version: 'v1.9.0',
-    date: 'Pembaruan Terbaru (v1.9.0)',
+    date: 'Rilis Sebelumnya (v1.9.0)',
     tag: 'Akurasi Deteksi Opening & Komentar Taktis Alami',
     tagColor: 'bg-emerald-100 text-emerald-900 border-emerald-200',
     changes: [
