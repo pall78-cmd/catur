@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Chess } from 'chess.js';
 import { ListOrdered, FolderUp } from 'lucide-react';
 import { pgn, overview } from '../data/analysis';
-import { playMoveSound } from '../utils/chessAudio';
+import { playMoveSound, playSoftNavSound } from '../utils/chessAudio';
 import { detectOpening } from '../data/openings';
 import { useStockfish } from '../hooks/useStockfish';
 import { useGameAnalysis } from '../lib/analysis/useGameAnalysis';
@@ -50,11 +50,54 @@ export default function ChessTutorial() {
   // Per-move evaluation cache for accurate Stockfish analysis across all PGN positions
   const [perMoveEvalMap, setPerMoveEvalMap] = useState<Record<number, { evaluation?: string; engineBestMove?: EngineBestMove | null }>>({});
 
+  // Parsed game based on activePgn
+  const fullGame = useMemo(() => {
+    const cg = new Chess();
+    try {
+      cg.loadPgn(activePgn);
+    } catch (e) {
+      console.error('PGN load error:', e);
+    }
+    return cg;
+  }, [activePgn]);
+
+  const history = useMemo(() => fullGame.history({ verbose: true }), [fullGame]);
+
+  // Pre-computed FEN list for lightning fast 0ms navigation
+  const fenHistory = useMemo(() => {
+    const initialFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+    if (!history || history.length === 0) return [initialFen];
+    return [initialFen, ...history.map((m: any) => m.after || initialFen)];
+  }, [history]);
+
   // Compute active FEN for Stockfish & Board
-  const activeFen = interactiveTrial ? interactiveTrial.fen : game.fen();
+  const activeFen = useMemo(() => {
+    if (interactiveTrial) return interactiveTrial.fen;
+    if (currentMoveIndex >= -1 && currentMoveIndex < history.length) {
+      return fenHistory[currentMoveIndex + 1] || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+    }
+    return 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+  }, [interactiveTrial, currentMoveIndex, history.length, fenHistory]);
 
   // Stockfish 18 evaluation via custom hook (Depth 18 for enhanced tactical analysis)
   const { evaluation, engineBestMove, engineDepth, analysisTimeMs, clearEngineHash } = useStockfish(activeFen, { targetDepth: 18 });
+
+  // Instant cached evaluation retrieval
+  const currentEvaluation = useMemo(() => {
+    if (interactiveTrial) return evaluation;
+    if (currentMoveIndex >= 0 && perMoveEvalMap[currentMoveIndex]?.evaluation) {
+      return perMoveEvalMap[currentMoveIndex].evaluation!;
+    }
+    return evaluation;
+  }, [interactiveTrial, currentMoveIndex, perMoveEvalMap, evaluation]);
+
+  const currentEngineBestMove = useMemo(() => {
+    if (interactiveTrial) return engineBestMove;
+    if (currentMoveIndex >= 0 && perMoveEvalMap[currentMoveIndex]?.engineBestMove) {
+      return perMoveEvalMap[currentMoveIndex].engineBestMove!;
+    }
+    return engineBestMove;
+  }, [interactiveTrial, currentMoveIndex, perMoveEvalMap, engineBestMove]);
 
   // Cache Stockfish evaluation for current move index when active
   useEffect(() => {
@@ -103,19 +146,6 @@ export default function ChessTutorial() {
     }
   }, [activePgn, isCustomMode, runAnalysis]);
 
-  // Parsed game based on activePgn
-  const fullGame = useMemo(() => {
-    const cg = new Chess();
-    try {
-      cg.loadPgn(activePgn);
-    } catch (e) {
-      console.error('PGN load error:', e);
-    }
-    return cg;
-  }, [activePgn]);
-
-  const history = useMemo(() => fullGame.history({ verbose: true }), [fullGame]);
-
   const isDefaultGame = useMemo(() => {
     return !isCustomMode && activePgn === pgn;
   }, [isCustomMode, activePgn]);
@@ -163,28 +193,28 @@ export default function ChessTutorial() {
     };
   }, [isCustomMode, activePgn, fullGame, history.length]);
 
-  // Jump to move index
+  // Jump to move index (Instantaneous O(1) state shift)
   const goToMove = useCallback((targetIndex: number) => {
-    const newGame = new Chess();
-    if (targetIndex >= 0 && targetIndex < history.length) {
-      for (let i = 0; i <= targetIndex; i++) {
-        newGame.move(history[i]);
-      }
-    }
-    setGame(newGame);
+    const isStepForward = targetIndex === currentMoveIndex + 1;
+    const isStepBackward = targetIndex === currentMoveIndex - 1;
+
     setCurrentMoveIndex(targetIndex);
     setInteractiveTrial(null);
 
-    // Audio cue
-    if (!isMuted && targetIndex >= 0 && targetIndex < history.length) {
-      const move = history[targetIndex];
-      const isCapture = Boolean(move.captured);
-      const isCheck = move.san.includes('+');
-      const isMate = move.san.includes('#');
-      const isCastle = move.san === 'O-O' || move.san === 'O-O-O';
-      playMoveSound(isCapture, isCheck, isCastle, isMate);
+    // Audio cue strictly synchronized with movement direction
+    if (!isMuted) {
+      if (isStepForward && targetIndex >= 0 && targetIndex < history.length) {
+        const move = history[targetIndex];
+        const isCapture = Boolean(move.captured);
+        const isCheck = move.san.includes('+');
+        const isMate = move.san.includes('#');
+        const isCastle = move.san === 'O-O' || move.san === 'O-O-O';
+        playMoveSound(isCapture, isCheck, isCastle, isMate);
+      } else if (isStepBackward || targetIndex !== currentMoveIndex) {
+        playSoftNavSound();
+      }
     }
-  }, [history, isMuted]);
+  }, [currentMoveIndex, history, isMuted]);
 
   // Navigation handlers
   const handleFirstMove = useCallback(() => {
@@ -430,16 +460,16 @@ export default function ChessTutorial() {
       activeMove,
       activeIdx,
       history.length + (interactiveTrial ? 1 : 0),
-      evaluation,
-      engineBestMove,
+      currentEvaluation,
+      currentEngineBestMove,
       isDefaultGame,
       activeIdx,
       perMoveEvalMap,
       history
     );
-  }, [interactiveTrial, lastMove, currentMoveIndex, history.length, evaluation, engineBestMove, isDefaultGame, perMoveEvalMap, history]);
+  }, [interactiveTrial, lastMove, currentMoveIndex, history.length, currentEvaluation, currentEngineBestMove, isDefaultGame, perMoveEvalMap, history]);
 
-  // Memoized Move pairs table data
+  // Memoized Move pairs table data (Decoupled from active step to prevent full table recalculations)
   const movePairs = useMemo<MovePairItem[]>(() => {
     const pairs: MovePairItem[] = [];
     for (let i = 0; i < history.length; i += 2) {
@@ -450,10 +480,10 @@ export default function ChessTutorial() {
         whiteMove, 
         i, 
         history.length, 
-        evaluation, 
-        engineBestMove, 
+        '', 
+        null, 
         isDefaultGame,
-        currentMoveIndex,
+        undefined,
         perMoveEvalMap,
         history
       );
@@ -462,10 +492,10 @@ export default function ChessTutorial() {
             blackMove, 
             i + 1, 
             history.length, 
-            evaluation, 
-            engineBestMove, 
+            '', 
+            null, 
             isDefaultGame,
-            currentMoveIndex,
+            undefined,
             perMoveEvalMap,
             history
           )
@@ -482,33 +512,33 @@ export default function ChessTutorial() {
       });
     }
     return pairs;
-  }, [history, evaluation, engineBestMove, isDefaultGame, currentMoveIndex, perMoveEvalMap]);
+  }, [history, isDefaultGame, perMoveEvalMap]);
 
-  // Move Quality Statistics
+  // Move Quality Statistics (Decoupled from active step)
   const moveStats = useMemo(() => {
     return calculateMoveStats(
       history, 
-      evaluation, 
-      engineBestMove, 
+      '', 
+      null, 
       isDefaultGame,
-      currentMoveIndex,
+      undefined,
       perMoveEvalMap
     );
-  }, [history, evaluation, engineBestMove, isDefaultGame, currentMoveIndex, perMoveEvalMap]);
+  }, [history, isDefaultGame, perMoveEvalMap]);
 
-  // Export PGN string
+  // Export PGN string (Decoupled from active step)
   const fullPgnText = useMemo(() => {
     return generateFullPgn(
       history,
       activeOverview,
       detectedOpening,
       isDefaultGame,
-      evaluation,
-      engineBestMove,
-      currentMoveIndex,
+      '',
+      null,
+      undefined,
       perMoveEvalMap
     );
-  }, [history, activeOverview, detectedOpening, isDefaultGame, evaluation, engineBestMove, currentMoveIndex, perMoveEvalMap]);
+  }, [history, activeOverview, detectedOpening, isDefaultGame, perMoveEvalMap]);
 
   // Dynamic overview text for game summary
   const dynamicOverviewText = useMemo(() => {
@@ -588,8 +618,10 @@ export default function ChessTutorial() {
             currentMoveIndex={currentMoveIndex}
             history={history}
             currentAnnotation={currentAnnotation}
-            evaluation={evaluation}
-            engineBestMove={engineBestMove}
+            evaluation={currentEvaluation}
+            engineBestMove={currentEngineBestMove}
+            playSpeedMs={playSpeedMs}
+            isPlaying={isPlaying}
           />
           
           <PromotionModal
@@ -609,8 +641,8 @@ export default function ChessTutorial() {
             currentMoveIndex={currentMoveIndex}
             lastMove={lastMove}
             currentAnnotation={currentAnnotation}
-            evaluation={evaluation}
-            engineBestMove={engineBestMove}
+            evaluation={currentEvaluation}
+            engineBestMove={currentEngineBestMove}
             interactiveTrial={interactiveTrial}
             engineDepth={engineDepth}
           />

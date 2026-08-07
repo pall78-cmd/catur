@@ -1,6 +1,7 @@
 // Audio Synthesizer for Chess Sound Effects using Web Audio API
 
 let audioCtx: AudioContext | null = null;
+let lastSoundTime = 0;
 
 function getAudioContext(): AudioContext | null {
   if (typeof window === 'undefined') return null;
@@ -16,8 +17,38 @@ function getAudioContext(): AudioContext | null {
   return audioCtx;
 }
 
+export function playSoftNavSound() {
+  try {
+    const nowMs = Date.now();
+    if (nowMs - lastSoundTime < 40) return; // Prevent audio congestion during rapid scrub
+    lastSoundTime = nowMs;
+
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(520, now);
+    osc.frequency.exponentialRampToValueAtTime(180, now + 0.03);
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.03);
+  } catch (e) {
+    // audio error ignore
+  }
+}
+
 export function playMoveSound(isCapture = false, isCheck = false, isCastle = false, isMate = false) {
   try {
+    const nowMs = Date.now();
+    if (nowMs - lastSoundTime < 50) return; // Throttling sound calls to avoid overlap
+    lastSoundTime = nowMs;
+
     const ctx = getAudioContext();
     if (!ctx) return;
 

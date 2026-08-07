@@ -1,1 +1,23 @@
 @import "tailwindcss";
+
+/* Realistic Depth and Soft Drop Shadows for Chess Pieces */
+[data-piece] {
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.28));
+  transition: filter 0.2s ease;
+}
+
+[data-piece]:hover {
+  filter: drop-shadow(0 5px 9px rgba(0, 0, 0, 0.38));
+}
+
+/* Smooth Target Square Pulse & Dashed Animation */
+@keyframes targetSquarePulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}

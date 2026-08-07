@@ -94,20 +94,29 @@ export function getDynamicAnnotation(
   let finalEvalStr = effectiveEvalStr;
   let finalBestMove = effectiveBestMove;
   
-  if (!finalEvalStr || finalEvalStr.includes('Mengevaluasi') || finalEvalStr.includes('Gagal')) {
-    try {
-      if (move && move.after) {
-        const chessAfter = new Chess(move.after);
-        const heur = getHeuristicEvaluation(chessAfter);
-        if (heur.mate !== null) {
-          finalEvalStr = heur.mate > 0 ? `+M${Math.abs(heur.mate)}` : `-M${Math.abs(heur.mate)}`;
-        } else {
-          const scoreVal = heur.cp / 100;
-          finalEvalStr = scoreVal > 0 ? `+${scoreVal.toFixed(2)}` : scoreVal.toFixed(2);
-        }
+  // Lazy cached chessAfter instance
+  let chessAfterInstance: Chess | null = null;
+  const getChessAfter = () => {
+    if (!chessAfterInstance && move && move.after) {
+      try {
+        chessAfterInstance = new Chess(move.after);
+      } catch (e) {
+        // ignore
       }
-    } catch (e) {
-      // ignore
+    }
+    return chessAfterInstance;
+  };
+
+  if (!finalEvalStr || finalEvalStr.includes('Mengevaluasi') || finalEvalStr.includes('Gagal')) {
+    const chessAfter = getChessAfter();
+    if (chessAfter) {
+      const heur = getHeuristicEvaluation(chessAfter);
+      if (heur.mate !== null) {
+        finalEvalStr = heur.mate > 0 ? `+M${Math.abs(heur.mate)}` : `-M${Math.abs(heur.mate)}`;
+      } else {
+        const scoreVal = heur.cp / 100;
+        finalEvalStr = scoreVal > 0 ? `+${scoreVal.toFixed(2)}` : scoreVal.toFixed(2);
+      }
     }
   }
 
@@ -181,16 +190,16 @@ export function getDynamicAnnotation(
 
   // Analyze tactical motifs
   const motifsList: string[] = [];
-  try {
-    if (move.after) {
-      const chessAfter = new Chess(move.after);
-      const detected = findMotifs(chessAfter, move.to, move.color);
+  const chessAfterForMotifs = getChessAfter();
+  if (chessAfterForMotifs) {
+    try {
+      const detected = findMotifs(chessAfterForMotifs, move.to, move.color);
       if (detected && Array.isArray(detected)) {
         motifsList.push(...detected);
       }
+    } catch (e) {
+      // ignore
     }
-  } catch (e) {
-    // ignore
   }
 
   // Dynamic Opening and Book move calculation
@@ -207,11 +216,11 @@ export function getDynamicAnnotation(
     const isMate = move.san.includes('#');
     let isDraw = false;
 
-    // Check actual game state for draws (stalemate, 3-fold repetition, insufficient material)
-    if (move.after) {
+    // Check actual game state for draws
+    const chessAfterForDraw = getChessAfter();
+    if (chessAfterForDraw) {
       try {
-        const chessAfter = new Chess(move.after);
-        if (chessAfter.isDraw()) {
+        if (chessAfterForDraw.isDraw()) {
           isDraw = true;
         }
       } catch (e) {
@@ -237,13 +246,6 @@ export function getDynamicAnnotation(
       const { label } = classifyMove(wpBefore, wpAfter, isBest, isBook, undefined, motifsList);
       engLabel = label;
       evaluation = (LABEL_ID as any)[label] || label;
-
-      // Print detailed Indonesian developer log
-      console.log(`%c[CHESS ANALYZER LOG] Langkah #${moveIndex + 1} (${isWhite ? 'Putih' : 'Hitam'}): ${move.san}`, 'font-weight: bold; color: #6366f1;');
-      console.log(`  - Posisi Sebelum (Langkah #${moveIndex}): ${finalPrevEvalStr ? `"${finalPrevEvalStr}"` : 'KOSONG (Menggunakan fallback +0.00)'} (Win%: ${wpBefore.toFixed(1)}%)`);
-      console.log(`  - Posisi Sesudah (Langkah #${moveIndex + 1}): "${finalEvalStr}" (Win%: ${wpAfter.toFixed(1)}%)`);
-      console.log(`  - Selisih Win% (winPercentLoss): ${evalLoss !== null ? `${evalLoss.toFixed(1)}%` : 'N/A'}`);
-      console.log(`  - Klasifikasi: "${label}" (Translasi ID: "${evaluation}")`);
     } else if (isBest) {
       engLabel = 'Best';
       evaluation = 'Terbaik';
@@ -253,10 +255,6 @@ export function getDynamicAnnotation(
     } else {
       engLabel = 'Good';
       evaluation = 'Bagus';
-      
-      if (!isDefaultGame && effectiveEvalStr) {
-        console.log(`[CHESS ANALYZER LOG] Langkah #${moveIndex + 1} (${isWhite ? 'Putih' : 'Hitam'}): ${move.san} dievaluasi "${effectiveEvalStr}" tapi kekurangan data posisi sebelumnya untuk mengukur selisih secara akurat. Default ke: "Bagus".`);
-      }
     }
   }
 

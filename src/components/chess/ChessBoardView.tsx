@@ -20,6 +20,8 @@ interface ChessBoardViewProps {
   currentAnnotation: any;
   evaluation?: string;
   engineBestMove?: EngineBestMove | null;
+  playSpeedMs?: number;
+  isPlaying?: boolean;
 }
 
 export const ChessBoardView: React.FC<ChessBoardViewProps> = React.memo(({
@@ -36,6 +38,8 @@ export const ChessBoardView: React.FC<ChessBoardViewProps> = React.memo(({
   currentAnnotation,
   evaluation = '0.0',
   engineBestMove,
+  playSpeedMs = 2800,
+  isPlaying = false,
 }) => {
   const [moveFrom, setMoveFrom] = useState<string | null>(null);
   const [legalTargetSquares, setLegalTargetSquares] = useState<string[]>([]);
@@ -61,31 +65,34 @@ export const ChessBoardView: React.FC<ChessBoardViewProps> = React.memo(({
     const styles: Record<string, React.CSSProperties> = {};
     if (activeMoveForBadge?.from && activeMoveForBadge?.to) {
       styles[activeMoveForBadge.from] = {
-        backgroundColor: 'rgba(255, 230, 0, 0.38)',
+        backgroundColor: 'rgba(250, 204, 21, 0.38)',
         borderRadius: '3px',
       };
       styles[activeMoveForBadge.to] = {
-        backgroundColor: 'rgba(255, 195, 0, 0.65)',
+        backgroundColor: 'rgba(234, 179, 8, 0.65)',
+        boxShadow: 'inset 0 0 6px rgba(161, 98, 7, 0.35)',
         borderRadius: '3px',
       };
     }
     if (engineBestMove && engineBestMove.to) {
       styles[engineBestMove.to] = {
         ...(styles[engineBestMove.to] || {}),
-        boxShadow: 'inset 0 0 0 3px #10b981',
+        boxShadow: 'inset 0 0 0 3px #10b981, inset 0 0 8px rgba(16, 185, 129, 0.35)',
         borderRadius: '4px',
       };
     }
     if (moveFrom) {
       styles[moveFrom] = {
-        backgroundColor: 'rgba(255, 255, 0, 0.4)',
+        backgroundColor: 'rgba(250, 204, 21, 0.45)',
+        boxShadow: 'inset 0 0 0 2px rgba(202, 138, 4, 0.8)',
         borderRadius: '4px',
       };
     }
     legalTargetSquares.forEach((square) => {
       styles[square] = {
         ...(styles[square] || {}),
-        backgroundImage: 'radial-gradient(circle, rgba(0,0,0,.25) 25%, transparent 25%)',
+        backgroundImage: 'radial-gradient(circle, rgba(16, 185, 129, 0.55) 28%, transparent 28%)',
+        cursor: 'pointer',
       };
     });
     return styles;
@@ -122,22 +129,25 @@ export const ChessBoardView: React.FC<ChessBoardViewProps> = React.memo(({
     }
   }
 
+  const dynamicAnimationDuration = useMemo(() => {
+    if (!isPlaying) return 180;
+    if (!playSpeedMs) return 220;
+    const calc = Math.round(playSpeedMs * 0.11);
+    return Math.min(260, Math.max(100, calc));
+  }, [playSpeedMs, isPlaying]);
+
   const chessboardOptions = useMemo(() => ({
     position: activeFen,
     boardOrientation: boardOrientation,
-    onPieceDrop: ({ sourceSquare, targetSquare }: any) => {
-      setMoveFrom(null); // Clear tap state if dragged
-      setLegalTargetSquares([]);
-      if (!sourceSquare || !targetSquare) return false;
-      return onPieceDrop(sourceSquare, targetSquare);
-    },
-    onSquareClick: ({ square }: any) => handleSquareClick(square),
+    animationDurationInMs: dynamicAnimationDuration,
+    showAnimations: true,
+    allowDragging: false,
+    onSquareClick: ({ square }: any) => handleSquareClick(typeof square === 'string' ? square : square.square || square),
+    squareStyles: highlightStyles,
     darkSquareStyle: { backgroundColor: '#b58863' },
     lightSquareStyle: { backgroundColor: '#f0d9b5' },
-    squareStyles: highlightStyles,
-    animationDurationInMs: 200,
-    allowDragging: false, // The user requested to disable dragging ("jangan pake logika drag deh pake aja klik")
-  }), [activeFen, boardOrientation, onPieceDrop, highlightStyles, moveFrom]);
+    boardStyle: { borderRadius: '0.5rem' },
+  }), [activeFen, boardOrientation, highlightStyles, dynamicAnimationDuration]);
 
   const topPlayerLabel = boardOrientation === 'black' ? whitePlayer : blackPlayer;
   const topPlayerSymbol = boardOrientation === 'black' ? 'W' : 'B';
@@ -181,15 +191,13 @@ export const ChessBoardView: React.FC<ChessBoardViewProps> = React.memo(({
         {/* Board Container */}
         <div className="flex-1 aspect-square relative rounded-lg overflow-hidden shadow-xs border border-neutral-300/80 z-10">
           <Chessboard
-            // @ts-ignore - TS doesn't know about key here but we need it to remount
-            key={boardOrientation}
             options={chessboardOptions}
           />
 
           {/* Dynamic Move Classification Overlay Badge */}
           {badgeInfo && badgeCoords && (
             <div
-              className={`absolute pointer-events-none z-10 -translate-x-1/2 -translate-y-1/2 px-2 py-0.5 rounded-full text-xs font-bold flex items-center gap-1 shadow-md transition-all duration-300 ${badgeInfo.badgeClass}`}
+              className={`absolute pointer-events-none z-20 -translate-x-1/2 -translate-y-1/2 px-2 py-0.5 rounded-full text-xs font-bold flex items-center gap-1 shadow-md transition-all duration-300 ${badgeInfo.badgeClass}`}
               style={{
                 left: badgeCoords.left,
                 top: badgeCoords.top,
