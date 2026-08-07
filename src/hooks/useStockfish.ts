@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { EngineBestMove } from '../types/chess';
+import { getStockfishEvaluationFromApi } from '../utils/stockfishApi';
 
 /**
  * Options for configuring Stockfish engine analysis depth & performance.
@@ -17,6 +18,9 @@ interface StockfishOptions {
  * React hook managing Stockfish 18 WebWorker lifecycle, UCI command dispatching,
  * debounced position analysis, and evaluation result parsing.
  *
+ * Automatically falls back to the public Stockfish/Lichess Cloud API when local WebWorker
+ * is restricted, disabled, or encounters an execution error.
+ *
  * @param activeFen - The current position in Forsyth–Edwards Notation (FEN)
  * @param options - Optional engine parameters for depth and performance tuning
  */
@@ -30,12 +34,14 @@ export function useStockfish(
   const [engineBestMove, setEngineBestMove] = useState<EngineBestMove | null>(null);
   const [engineDepth, setEngineDepth] = useState<number>(0);
   const [analysisTimeMs, setAnalysisTimeMs] = useState<number>(0);
+  const [isApiFallback, setIsApiFallback] = useState<boolean>(false);
 
   const engineRef = useRef<Worker | null>(null);
   const activeFenRef = useRef(activeFen);
   const lastUpdateRef = useRef<number>(0);
   const startTimeRef = useRef<number>(Date.now());
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const livenessTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Sync latest FEN to ref for async worker callback evaluation context
   useEffect(() => {
@@ -45,6 +51,8 @@ export function useStockfish(
   // Worker Initialization & Message Event Listener
   useEffect(() => {
     let worker: Worker | null = null;
+    let isReadyTimeout: NodeJS.Timeout | null = null;
+
     try {
       const workerUrl = new URL('/stockfish.js', window.location.origin).href;
       worker = new Worker(workerUrl);
@@ -61,9 +69,17 @@ export function useStockfish(
       worker.postMessage(`setoption name Hash value ${hashSize}`);
       worker.postMessage('isready');
 
+      // If worker does not send 'readyok' within 2000ms, fallback to API
+      isReadyTimeout = setTimeout(() => {
+        if (!isApiFallback && (!worker || !engineRef.current)) {
+          console.warn('[Stockfish] Local worker not responding to ready signals. Falling back to public API.');
+          setIsApiFallback(true);
+        }
+      }, 2000);
+
       worker.onerror = (err) => {
-        console.error('Stockfish worker execution error:', err);
-        setEvaluation('Gagal memuat mesin');
+        console.warn('Stockfish worker execution error, falling back to public API:', err);
+        setIsApiFallback(true);
       };
 
       worker.onmessage = (e: MessageEvent) => {
@@ -72,6 +88,18 @@ export function useStockfish(
           line = line.data;
         }
         if (typeof line !== 'string') return;
+
+        // Clear liveness timeout on receiving messages from worker
+        if (livenessTimerRef.current) {
+          clearTimeout(livenessTimerRef.current);
+          livenessTimerRef.current = null;
+        }
+
+        // Parse readyok
+        if (line === 'readyok') {
+          if (isReadyTimeout) clearTimeout(isReadyTimeout);
+          return;
+        }
 
         // Parse bestmove line output from Stockfish
         if (line.startsWith('bestmove')) {
@@ -138,13 +166,17 @@ export function useStockfish(
         }
       };
     } catch (err) {
-      console.error('Failed to instantiate Stockfish worker:', err);
-      setEvaluation('Mesin tidak dapat dijalankan');
+      console.warn('Failed to instantiate Stockfish worker, falling back to public API:', err);
+      setIsApiFallback(true);
     }
 
     return () => {
+      if (isReadyTimeout) clearTimeout(isReadyTimeout);
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
+      }
+      if (livenessTimerRef.current) {
+        clearTimeout(livenessTimerRef.current);
       }
       if (worker) {
         worker.postMessage('stop');
@@ -158,18 +190,41 @@ export function useStockfish(
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
     }
+    if (livenessTimerRef.current) {
+      clearTimeout(livenessTimerRef.current);
+      livenessTimerRef.current = null;
+    }
 
     setEvaluation('Mengevaluasi...');
     setEngineBestMove(null);
     setEngineDepth(0);
 
     // Short 30ms debounce avoids spamming stop/go during rapid navigation or auto-play
-    debounceTimerRef.current = setTimeout(() => {
+    debounceTimerRef.current = setTimeout(async () => {
+      if (isApiFallback) {
+        startTimeRef.current = Date.now();
+        const result = await getStockfishEvaluationFromApi(activeFen, 12);
+        setEvaluation(result.evaluation);
+        setEngineBestMove(result.engineBestMove);
+        setEngineDepth(result.engineDepth);
+        setAnalysisTimeMs(result.timeMs);
+        return;
+      }
+
       if (engineRef.current) {
         startTimeRef.current = Date.now();
         engineRef.current.postMessage('stop');
         engineRef.current.postMessage(`position fen ${activeFen}`);
         engineRef.current.postMessage(`go depth ${targetDepth}`);
+
+        // Set safety liveness timer: if worker doesn't respond with any messages in 1200ms, use API
+        livenessTimerRef.current = setTimeout(() => {
+          console.warn('[Stockfish] Local worker became unresponsive. Falling back to public API.');
+          setIsApiFallback(true);
+        }, 1200);
+      } else {
+        // If no worker exists, trigger fallback
+        setIsApiFallback(true);
       }
     }, 30);
 
@@ -177,10 +232,14 @@ export function useStockfish(
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
+      if (livenessTimerRef.current) {
+        clearTimeout(livenessTimerRef.current);
+      }
     };
-  }, [activeFen, targetDepth]);
+  }, [activeFen, targetDepth, isApiFallback]);
 
   const clearEngineHash = () => {
+    if (isApiFallback) return; // Stateless fallback
     if (engineRef.current) {
       engineRef.current.postMessage('ucinewgame');
       engineRef.current.postMessage(`setoption name Hash value ${hashSize}`);
@@ -190,6 +249,6 @@ export function useStockfish(
     }
   };
 
-  return { evaluation, engineBestMove, engineDepth, analysisTimeMs, clearEngineHash };
+  return { evaluation, engineBestMove, engineDepth, analysisTimeMs, isApiFallback, clearEngineHash };
 }
 

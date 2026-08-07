@@ -121,7 +121,8 @@ export default function ChessTutorial() {
   }, [isCustomMode, activePgn]);
 
   const detectedOpening = useMemo(() => {
-    return detectOpening(history);
+    const opening = detectOpening(history);
+    return opening ? opening.name : null;
   }, [history]);
 
   const activeOverview = useMemo(() => {
@@ -433,9 +434,10 @@ export default function ChessTutorial() {
       engineBestMove,
       isDefaultGame,
       activeIdx,
-      perMoveEvalMap
+      perMoveEvalMap,
+      history
     );
-  }, [interactiveTrial, lastMove, currentMoveIndex, history.length, evaluation, engineBestMove, isDefaultGame, perMoveEvalMap]);
+  }, [interactiveTrial, lastMove, currentMoveIndex, history.length, evaluation, engineBestMove, isDefaultGame, perMoveEvalMap, history]);
 
   // Memoized Move pairs table data
   const movePairs = useMemo<MovePairItem[]>(() => {
@@ -452,7 +454,8 @@ export default function ChessTutorial() {
         engineBestMove, 
         isDefaultGame,
         currentMoveIndex,
-        perMoveEvalMap
+        perMoveEvalMap,
+        history
       );
       const blackAnn = blackMove 
         ? getDynamicAnnotation(
@@ -463,7 +466,8 @@ export default function ChessTutorial() {
             engineBestMove, 
             isDefaultGame,
             currentMoveIndex,
-            perMoveEvalMap
+            perMoveEvalMap,
+            history
           )
         : null;
 

@@ -207,8 +207,14 @@ export const OPENINGS_DATABASE: ChessOpening[] = [
   }
 ];
 
-export function detectOpening(historySan: string[]): ChessOpening | null {
-  if (!historySan || historySan.length === 0) return null;
+export function detectOpening(history: any[]): ChessOpening | null {
+  if (!history || history.length === 0) return null;
+
+  // Safe check if history elements are objects or strings, and normalize
+  const historySan = history.map(m => {
+    const sanStr = typeof m === 'string' ? m : m?.san;
+    return sanStr ? sanStr.replace(/[+#?!]/g, '').trim() : '';
+  }).filter(Boolean);
 
   let bestMatch: ChessOpening | null = null;
   let maxMatchLength = 0;
@@ -218,7 +224,9 @@ export function detectOpening(historySan: string[]): ChessOpening | null {
     if (historySan.length >= len) {
       let isMatch = true;
       for (let i = 0; i < len; i++) {
-        if (historySan[i] !== opening.moves[i]) {
+        const played = historySan[i];
+        const ref = opening.moves[i].replace(/[+#?!]/g, '').trim();
+        if (played !== ref) {
           isMatch = false;
           break;
         }

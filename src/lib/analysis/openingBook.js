@@ -56,11 +56,14 @@ export const OPENING_BOOK = {
 };
 
 export function findOpening(sanMoves) {
+  if (!sanMoves || sanMoves.length === 0) return null;
+  // Clean SAN moves of annotations
+  const cleanMoves = sanMoves.map(m => m.replace(/[+#?!]/g, '').trim());
   let best = null;
-  const maxLen = Math.min(sanMoves.length, 12);
+  const maxLen = Math.min(cleanMoves.length, 12);
 
   for (let len = 1; len <= maxLen; len++) {
-    const prefix = sanMoves.slice(0, len).join(" ");
+    const prefix = cleanMoves.slice(0, len).join(" ");
     const entry = OPENING_BOOK[prefix];
     if (entry) {
       best = { eco: entry.eco, name: entry.name, plyMatched: len };

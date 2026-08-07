@@ -13,72 +13,67 @@ export function explainMove({
   bestLineSan = [],
 }) {
   const label = LABEL_ID[classification] || classification;
-
-  // 1. Objective Analysis (Engine, Math, Stats)
-  const objectiveParts = [];
   const loss = Math.round(winPercentLoss * 10) / 10;
-
-  if (classification === "Book" || isBookMove) {
-    objectiveParts.push(`Langkah Buku Teori (Book Move).`);
-    if (openingName) {
-      objectiveParts.push(`Mengikuti pembukaan standard "${openingName}".`);
-    } else {
-      objectiveParts.push(`Mengikuti teori pembukaan standar.`);
-    }
-  } else {
-    objectiveParts.push(`Evaluasi langkah: ${label}.`);
-    if (loss > 0) {
-      objectiveParts.push(`Peluang menang berkurang sebesar ${loss}% berdasarkan kalkulasi kedalaman engine.`);
-    } else {
-      objectiveParts.push(`Langkah akurat yang mempertahankan atau meningkatkan kontrol posisi.`);
-    }
-    
-    if (bestLineSan && bestLineSan.length > 0) {
-      objectiveParts.push(`Rekomendasi jalur terbaik: ${bestLineSan.join(" → ")}.`);
-    }
-  }
-
-  // 2. Subjective Analysis (Tactical commentary, strategy)
-  const subjectiveParts = [];
   
+  const comments = [];
+
+  // Start with a natural tactical intro depending on classification
   if (classification === "Book" || isBookMove) {
-    subjectiveParts.push("Mengembangkan perwira ke petak-petak strategis standar untuk menguasai pusat papan catur (center block) dan mempersiapkan keamanan raja (rokade).");
+    if (openingName) {
+      comments.push(`Langkah buku teori standar. Mengikuti pembukaan "${openingName}" untuk memperebutkan petak strategis di pusat papan catur.`);
+    } else {
+      comments.push("Langkah buku teori standar (Book Move) untuk mengembangkan perwira dan memperebutkan kontrol pusat papan.");
+    }
   } else if (classification === "Brilliant" || classification === "Brilian") {
-    subjectiveParts.push("💎 LUAR BIASA! Ini adalah langkah brilian (langkah jenius atau pengorbanan material) yang sangat sulit dihitung. Anda berhasil menemukan ancaman taktis tersembunyi yang merusak koordinasi lawan!");
+    comments.push(`Langkah luar biasa brilian dengan memainkan ${moveSan}! Ini menunjukkan kalkulasi taktis tajam atau pengorbanan material jenius yang mempersulit pertahanan musuh.`);
   } else if (classification === "Best" || classification === "Terbaik") {
-    subjectiveParts.push("⭐ Langkah paling optimal di posisi ini. Menunjukkan pemahaman posisi yang solid, membatasi kontra-permainan lawan, dan meningkatkan tekanan strategis.");
+    comments.push(`Langkah terbaik yang sangat akurat dari segi posisi. Mempertahankan kontrol papan, meningkatkan koordinasi perwira, dan membatasi opsi serangan balik musuh.`);
   } else if (classification === "Excellent" || classification === "Sangat Bagus") {
-    subjectiveParts.push("Langkah yang sangat bagus! Menjaga tempo permainan, mengamankan perwira, dan melanjutkan rencana ofensif/defensif dengan percaya diri.");
+    comments.push(`Langkah yang sangat bagus! Menjaga momentum permainan tetap di tangan Anda, memperkuat posisi, dan melanjutkan rencana ofensif dengan solid.`);
   } else if (classification === "Good" || classification === "Bagus") {
-    subjectiveParts.push("Langkah taktis yang solid dan aman. Membantu struktur bidak tetap utuh dan mempertahankan koordinasi antar perwira di area kritis.");
+    comments.push(`Langkah taktis yang solid dan aman. Membantu menjaga keutuhan struktur bidak serta stabilitas koordinasi antarperwira.`);
   } else if (classification === "Inaccuracy" || classification === "Ketidakakuratan") {
-    subjectiveParts.push("?! Langkah kurang akurat (Inaccuracy). Ada opsi yang lebih efisien untuk mempertahankan inisiatif atau membatasi serangan balik lawan. Langkah ini memberi sedikit ruang gerak bagi musuh.");
+    comments.push(`Langkah kurang akurat (Inaccuracy). Ada pilihan langkah yang lebih efisien untuk mempertahankan tekanan atau membatasi serangan balik lawan.`);
   } else if (classification === "Mistake" || classification === "Kesalahan") {
-    subjectiveParts.push("? Kesalahan taktis (Mistake). Menurunkan tekanan permainan, merugikan tempo, atau memberikan lawan kesempatan untuk merusak pertahanan Anda.");
+    comments.push(`Kesalahan taktis (Mistake). Mengurangi dominasi permainan, merugikan tempo, atau memberikan musuh ruang untuk merajut inisiatif.`);
   } else if (classification === "Blunder") {
-    subjectiveParts.push("?? Blunder serius! Langkah berbahaya yang melemahkan posisi secara drastis, mengorbankan materi penting tanpa kompensasi, atau membiarkan taktik musuh langsung mematikan.");
+    comments.push(`Blunder serius! Langkah ini melemahkan pertahanan secara drastis, berisiko mengorbankan material penting tanpa kompensasi yang sepadan.`);
   } else if (classification === "Forced" || classification === "Langkah Paksaan") {
-    subjectiveParts.push("Satu-satunya langkah legal yang dapat dimainkan di posisi kritis ini untuk keluar dari ancaman.");
+    comments.push(`Langkah paksaan kritis. Satu-satunya langkah legal yang dapat diambil untuk keluar dari ancaman lawan.`);
+  } else {
+    comments.push(`Langkah ${moveSan} yang solid untuk mempertahankan koordinasi.`);
   }
 
-  // Additional tactical motifs analysis
+  // Add loss percentage or dynamic values naturally without headers
+  if (classification !== "Book" && !isBookMove) {
+    if (loss > 2.0) {
+      comments.push(`Kalkulasi mesin mendeteksi penurunan peluang kemenangan sebesar ${loss}%.`);
+    } else if (loss > 0) {
+      comments.push(`Langkah ini membuat peluang menang sedikit berkurang sekitar ${loss}%.`);
+    } else {
+      comments.push(`Langkah presisi tinggi yang mempertahankan kontrol posisi strategis.`);
+    }
+  }
+
+  // Tactical motifs
   if (motifs.includes("fork")) {
-    subjectiveParts.push("⚠️ Motif Garpu (Fork) terdeteksi! Satu perwira mengancam dua target musuh secara bersamaan, menciptakan keuntungan material tak terhindarkan.");
+    comments.push("Terdapat ancaman motif Garpu (Fork), di mana satu perwira menargetkan dua sasaran penting musuh secara bersamaan.");
   }
   if (motifs.includes("hanging_piece_created")) {
-    subjectiveParts.push("🎯 Menciptakan perwira gantung (Hanging Piece) pada pertahanan musuh yang kini tidak memiliki perlindungan sama sekali.");
+    comments.push("Langkah ini memicu perwira gantung pada pertahanan musuh yang kini tidak lagi terlindungi.");
   }
   if (motifs.includes("left_piece_hanging")) {
-    subjectiveParts.push("🔴 Peringatan: Meninggalkan perwira sendiri dalam kondisi gantung tanpa perlindungan, memberi sasaran empuk untuk dimakan lawan.");
+    comments.push("Perlu berhati-hati karena langkah ini membiarkan salah satu perwira Anda dalam kondisi gantung tanpa perlindungan.");
   }
   if (motifs.includes("check")) {
-    subjectiveParts.push("⚔️ Melancarkan serangan langsung (Skak) ke arah Raja lawan untuk mengganggu rajutan koordinasi musuh.");
+    comments.push("Melancarkan skak langsung ke raja lawan untuk mendikte ritme permainan.");
   }
 
-  const objectiveText = objectiveParts.join(" ");
-  const subjectiveText = subjectiveParts.join(" ");
+  if (bestLineSan && bestLineSan.length > 0) {
+    comments.push(`Saran kelanjutan jalur terbaik: ${bestLineSan.join(" → ")}.`);
+  }
 
-  return `📊 [ANALISIS OBJEKTIF]:\n${objectiveText}\n\n🧠 [ANALISIS SUBJEKTIF]:\n${subjectiveText}`;
+  return comments.join(" ");
 }
 
 export function buildGameSummary({

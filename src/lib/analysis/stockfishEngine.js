@@ -3,6 +3,7 @@
  */
 
 import { Chess } from "chess.js";
+import { getStockfishEvaluationFromApi } from "../../utils/stockfishApi";
 
 export function getMaterialScore(chess) {
   let score = 0;
@@ -240,26 +241,64 @@ export class StockfishAnalyzer {
 
   _runAnalysis(fen, depth, timeout) {
     return new Promise((resolve, reject) => {
-      // Graceful fallback to heuristic evaluation if worker is not active OR not fully ready yet
-      if (!this.worker || !this._isReady) {
-        let score = { cp: 0, mate: null };
-        try {
-          const tempChess = new Chess(fen);
-          score = getHeuristicEvaluation(tempChess);
-          // Standard UCI score is relative to side to move
-          if (tempChess.turn() === 'b') {
-            if (score.cp !== null) score.cp = -score.cp;
-            if (score.mate !== null) score.mate = -score.mate;
-          }
-        } catch (e) {}
-        const parsed = {
-          depth: 5,
-          multipv: 1,
-          scoreCp: score.cp,
-          scoreMate: score.mate,
-          pv: []
-        };
-        return resolve([parsed]);
+      // Graceful fallback to Cloud API evaluation if worker is not active OR not fully ready yet
+      if (!this.worker || !this._isReady || this._initStatus === 'fallback') {
+        const sideToMove = fen.split(' ')[1] || 'w';
+        getStockfishEvaluationFromApi(fen, Math.min(depth, 12))
+          .then((res) => {
+            const isMate = res.evaluation.startsWith('+M') || res.evaluation.startsWith('-M');
+            let scoreCp = null;
+            let scoreMate = null;
+            
+            if (isMate) {
+              const sign = res.evaluation.startsWith('+M') ? 1 : -1;
+              const value = parseInt(res.evaluation.replace(/[+-]M/, ''), 10);
+              let val = sign * value;
+              if (sideToMove === 'b') {
+                val = -val;
+              }
+              scoreMate = val;
+            } else {
+              let val = parseFloat(res.evaluation);
+              if (isNaN(val)) val = 0.0;
+              if (sideToMove === 'b') {
+                val = -val;
+              }
+              scoreCp = Math.round(val * 100);
+            }
+            
+            const pvMoves = res.engineBestMove ? [`${res.engineBestMove.from}${res.engineBestMove.to}`] : [];
+            
+            const parsed = {
+              depth: res.engineDepth || 10,
+              multipv: 1,
+              scoreCp: scoreCp,
+              scoreMate: scoreMate,
+              pv: pvMoves
+            };
+            resolve([parsed]);
+          })
+          .catch((err) => {
+            let score = { cp: 0, mate: null };
+            try {
+              const tempChess = new Chess(fen);
+              score = getHeuristicEvaluation(tempChess);
+              // Standard UCI score is relative to side to move
+              if (tempChess.turn() === 'b') {
+                if (score.cp !== null) score.cp = -score.cp;
+                if (score.mate !== null) score.mate = -score.mate;
+              }
+            } catch (e) {}
+            const parsed = {
+              depth: 5,
+              multipv: 1,
+              scoreCp: score.cp,
+              scoreMate: score.mate,
+              pv: []
+            };
+            resolve([parsed]);
+          });
+        return;
       }
 
       let resolved = false;

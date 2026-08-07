@@ -69,7 +69,8 @@ export function getDynamicAnnotation(
   bestMove: EngineBestMove | null,
   isDefaultGame: boolean,
   currentActiveMoveIndex?: number,
-  perMoveEvalMap?: Record<number, { evaluation?: string; engineBestMove?: EngineBestMove | null }>
+  perMoveEvalMap?: Record<number, { evaluation?: string; engineBestMove?: EngineBestMove | null }>,
+  verboseHistory?: any[]
 ): DynamicAnnotationResult | null {
   if (moveIndex < 0 || !move) return null;
   const plyNumber = moveIndex + 1;
@@ -161,7 +162,7 @@ export function getDynamicAnnotation(
       
       const c2Cp = currEvalVal.cp;
       const c2Mate = currEvalVal.mate;
-
+ 
       // Calculate win percentages from the perspective of the player making the move:
       if (isWhite) {
         wpBefore = cpToWinPercent(c1Cp, c1Mate);
@@ -192,6 +193,15 @@ export function getDynamicAnnotation(
     // ignore
   }
 
+  // Dynamic Opening and Book move calculation
+  let isBook = false;
+  let openingMatch = null;
+  if (verboseHistory && Array.isArray(verboseHistory)) {
+    const sanHistory = verboseHistory.map(m => m.san || '');
+    isBook = isBookMove(sanHistory, moveIndex);
+    openingMatch = findOpening(sanHistory.slice(0, moveIndex + 1));
+  }
+
   if (!evaluation) {
     const isCheck = move.san.includes('+');
     const isMate = move.san.includes('#');
@@ -205,10 +215,13 @@ export function getDynamicAnnotation(
       evaluation = 'Skakmat';
     } else if (isDraw) {
       evaluation = 'Remis';
+    } else if (isBook) {
+      engLabel = 'Book';
+      evaluation = 'Teori';
     } else if (move.isForced || (isMateSeq && isCheck && move.piece === 'k')) {
       evaluation = 'Langkah Paksaan';
     } else if (finalEvalStr && wpBefore !== null && wpAfter !== null) {
-      const { label } = classifyMove(wpBefore, wpAfter, isBest, false, undefined, motifsList);
+      const { label } = classifyMove(wpBefore, wpAfter, isBest, isBook, undefined, motifsList);
       engLabel = label;
       evaluation = (LABEL_ID as any)[label] || label;
 
@@ -244,10 +257,10 @@ export function getDynamicAnnotation(
   // Dynamic Narrative text builder using explainer
   const annotationText = explainMove({
     moveSan: move.san,
-    classification: engLabel || 'Good',
+    classification: engLabel || (isBook ? 'Book' : 'Good'),
     winPercentLoss: evalLoss || 0,
-    isBookMove: evaluation === 'Teori',
-    openingName: null,
+    isBookMove: isBook,
+    openingName: openingMatch ? openingMatch.name : null,
     motifs: motifsList,
     bestLineSan: [] 
   });
@@ -372,7 +385,8 @@ export function calculateMoveStats(
       engineBestMove, 
       isDefaultGame,
       currentActiveMoveIndex,
-      perMoveEvalMap
+      perMoveEvalMap,
+      history
     );
     const evalTag = ann?.evaluation || 'Bagus';
 
@@ -458,7 +472,8 @@ export function generateFullPgn(
       engineBestMove, 
       isDefaultGame,
       currentActiveMoveIndex,
-      perMoveEvalMap
+      perMoveEvalMap,
+      history
     );
     const evalTag = ann?.evaluation ? `[${ann.evaluation}] ` : '';
     const noteText = ann?.annotation ? ann.annotation.replace(/[\r\n]+/g, ' ') : '';

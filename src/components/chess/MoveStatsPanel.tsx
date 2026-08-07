@@ -102,52 +102,55 @@ export const MoveStatsPanel: React.FC<MoveStatsPanelProps> = React.memo(({
         </div>
       </div>
 
-      {totalMoves > 0 && (
-        <div className="flex flex-col gap-2 mt-2 pt-2 border-t border-neutral-100">
-          <div className="flex justify-between items-center">
-            <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">
-              Analisis Mesin Stockfish
+      {/* Stockfish Engine Analysis Section */}
+      <div className="flex flex-col gap-2 mt-2 pt-2 border-t border-neutral-100">
+        <div className="flex justify-between items-center">
+          <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">
+            Analisis Mesin Stockfish
+          </span>
+          {isAnalyzingGame && (
+            <span className="text-[10px] font-mono text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded font-bold">
+              {analysisProgress?.current}/{analysisProgress?.total} langkah
             </span>
-            {isAnalyzingGame && (
-              <span className="text-[10px] font-mono text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded font-bold">
-                {analysisProgress?.current}/{analysisProgress?.total} langkah
-              </span>
-            )}
-          </div>
-          
-          {isAnalyzingGame ? (
-            <div className="flex flex-col gap-1.5">
-              <button
-                disabled
-                className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-indigo-50 border border-indigo-200/80 rounded-xl text-indigo-700 text-xs font-bold shadow-xs cursor-not-allowed"
-              >
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
-                <span>Menganalisis Permainan...</span>
-              </button>
-              <div className="w-full h-1.5 bg-neutral-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-indigo-500 rounded-full transition-all duration-300"
-                  style={{
-                    width: `${
-                      analysisProgress?.total
-                        ? (analysisProgress.current / analysisProgress.total) * 100
-                        : 0
-                    }%`,
-                  }}
-                />
-              </div>
-            </div>
-          ) : (
-            <button
-              onClick={onRunAnalysis}
-              className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white rounded-xl text-xs font-bold transition-all shadow-xs hover:shadow-md cursor-pointer"
-            >
-              <Cpu className="w-3.5 h-3.5" />
-              <span>Mulai Analisis Penuh Stockfish</span>
-            </button>
           )}
         </div>
-      )}
+        
+        {totalMoves === 0 ? (
+          <div className="p-2 bg-neutral-50 border border-neutral-200/50 rounded-xl text-[11px] text-neutral-500 leading-relaxed text-center">
+            Mainkan langkah pertama Anda di papan catur untuk merekam permainan dan mengaktifkan analisis kualitas langkah penuh.
+          </div>
+        ) : isAnalyzingGame ? (
+          <div className="flex flex-col gap-1.5">
+            <button
+              disabled
+              className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-indigo-50 border border-indigo-200/80 rounded-xl text-indigo-700 text-xs font-bold shadow-xs cursor-not-allowed"
+            >
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+              <span>Menganalisis Permainan...</span>
+            </button>
+            <div className="w-full h-1.5 bg-neutral-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-indigo-500 rounded-full transition-all duration-300"
+                style={{
+                  width: `${
+                    analysisProgress?.total
+                      ? (analysisProgress.current / analysisProgress.total) * 100
+                      : 0
+                  }%`,
+                }}
+              />
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={onRunAnalysis}
+            className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white rounded-xl text-xs font-bold transition-all shadow-xs hover:shadow-md cursor-pointer"
+          >
+            <Cpu className="w-3.5 h-3.5" />
+            <span>Mulai Analisis Penuh Stockfish</span>
+          </button>
+        )}
+      </div>
     </div>
   );
 });
