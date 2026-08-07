@@ -8,6 +8,30 @@ interface ChangelogModalProps {
 
 const CHANGELOG_DATA = [
   {
+    version: 'v1.9.0',
+    date: 'Pembaruan Terbaru (v1.9.0)',
+    tag: 'Akurasi Deteksi Opening & Komentar Taktis Alami',
+    tagColor: 'bg-emerald-100 text-emerald-900 border-emerald-200',
+    changes: [
+      {
+        title: 'Komentar Taktis Alami (Fluid Tactical Commentary)',
+        desc: 'Menghapus pemisahan kaku "Analisis Objektif" & "Analisis Subjektif". Komentar langkah kini disajikan dalam satu narasi yang mengalir natural, terintegrasi langsung dengan kalkulasi penurunan persentase kemenangan dari Stockfish (loss) serta saran jalur terbaik mesin.',
+      },
+      {
+        title: 'Deteksi Akurat Pembukaan (Opening) & Variasi',
+        desc: 'Memperbaiki bug di mana pembukaan atau variasi catur tidak terbaca atau tidak sesuai dengan jalannya permainan. Sistem kini secara otomatis menormalisasi simbol anotasi langkah (+, #, ?, !, ?!) sebelum memvalidasi ke database teori pembukaan.',
+      },
+      {
+        title: 'Sinkronisasi Sempurna Statistik & Anotasi',
+        desc: 'Menyelaraskan pelacakan riwayat permainan aktif dengan Move Table, memastikan nama pembukaan, klasifikasi langkah, dan detail anotasi yang ditampilkan selalu 100% sinkron dan sesuai dengan langkah aktif di papan catur.',
+      },
+      {
+        title: 'Perapian & Optimasi Basis Kode',
+        desc: 'Merapikan import, mengoptimalkan memoization React untuk rendering komponen papan catur yang lebih responsif, serta membersihkan sisa-sisa kode pengujian agar aplikasi super stabil.',
+      },
+    ],
+  },
+  {
     version: 'v1.8.0',
     date: 'Pembaruan Terbaru',
     tag: 'Widget Performa SF18 & Klasifikasi Langkah Otomatis',

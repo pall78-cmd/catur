@@ -2,7 +2,17 @@
 
 Semua perubahan pada proyek ini akan dicatat di dalam berkas ini.
 
-## [Unreleased]
+## [1.9.0] - 2026-08-06
+### Added
+- **Komentar Taktis Alami (Fluid Tactical Commentary):** Menghapus format lama berupa header kaku ("Analisis Objektif" & "Analisis Subjektif") yang terpisah. Komentar langkah kini disajikan dalam satu narasi mengalir yang natural, menyatu dengan kalkulasi deviasi persentase peluang kemenangan dari Stockfish jika ada penurunan akurasi.
+- **Rekomendasi Jalur Terbaik:** Menampilkan kelanjutan variasi atau langkah alternatif terbaik yang disarankan oleh mesin Stockfish langsung di dalam komentar langkah taktis.
+
+### Fixed
+- **Deteksi Akurat Pembukaan (Opening) & Variasi:** Memperbaiki bug yang menyebabkan pembukaan tidak terdeteksi atau tidak sesuai dengan jalannya permainan. Sistem kini melakukan normalisasi string langkah catur (membersihkan simbol anotasi seperti `+`, `#`, `?`, `!`, `?!`) sebelum mencocokkannya dengan database pembukaan (`detectOpening` & `findOpening`).
+- **Sinkronisasi Sempurna Statistik & Anotasi:** Menyelaraskan pelacakan riwayat permainan dengan tabel daftar langkah (Move Table), menjamin nama pembukaan, variasi, evaluasi langkah, dan detail anotasi yang ditampilkan selalu 100% sinkron dan sesuai dengan progres langkah aktif di papan catur.
+- **Perapian Basis Kode (Code Refactoring):** Merapikan import, membersihkan penanganan state pada hook evaluasi, dan memangkas redundansi kode untuk performa eksekusi yang optimal dan bebas bug.
+
+## [1.8.0] - 2026-08-05
 ### Added
 - Fitur **Papan Catur Interaktif** dengan evaluasi Stockfish 18 (WASM) untuk analisis langsung di peramban (browser).
 - **Mode Posisi Kustom (FEN):** Memungkinkan pengguna untuk memasukkan teks (string) FEN dan menganalisis posisi khusus menggunakan mesin Stockfish, lengkap dengan garis panah yang menunjukkan rekomendasi langkah terbaik.
