@@ -7,6 +7,7 @@ import { pgn, overview } from '../data/analysis';
 import { playMoveSound } from '../utils/chessAudio';
 import { detectOpening } from '../data/openings';
 import { useStockfish } from '../hooks/useStockfish';
+import { useGameAnalysis } from '../lib/analysis/useGameAnalysis';
 import { 
   getDynamicAnnotation, 
   calculateMoveStats, 
@@ -34,7 +35,7 @@ export default function ChessTutorial() {
   const [boardOrientation, setBoardOrientation] = useState<'white' | 'black'>('white');
   const [isMuted, setIsMuted] = useState(false);
 
-  const [activePgn, setActivePgn] = useState('');
+  const [activePgn, setActivePgn] = useState(pgn);
   const [customInput, setCustomInput] = useState('');
   const [isCustomMode, setIsCustomMode] = useState(false);
   const [inputFeedback, setInputFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -67,6 +68,33 @@ export default function ChessTutorial() {
       });
     }
   }, [currentMoveIndex, interactiveTrial, evaluation, engineBestMove]);
+
+  // useGameAnalysis hook for background scanning of loaded PGN games
+  const { 
+    isAnalyzing: isAnalyzingGame, 
+    progress: analysisProgress, 
+    report: analysisReport, 
+    runAnalysis 
+  } = useGameAnalysis({ depth: 12 });
+
+  // Sync full game analysis results into perMoveEvalMap
+  useEffect(() => {
+    if (analysisReport && analysisReport.moves) {
+      const newPerMoveMap: Record<number, { evaluation?: string; engineBestMove?: EngineBestMove | null }> = {};
+      analysisReport.moves.forEach((m: any, idx: number) => {
+        newPerMoveMap[idx] = {
+          evaluation: m.evaluation,
+          engineBestMove: m.engineBestMove,
+        };
+      });
+      setPerMoveEvalMap(newPerMoveMap);
+    }
+  }, [analysisReport]);
+
+  // Clear evaluation cache when loading a new game to prevent mismatched evaluations
+  useEffect(() => {
+    setPerMoveEvalMap({});
+  }, [activePgn]);
 
   // Parsed game based on activePgn
   const fullGame = useMemo(() => {
@@ -574,7 +602,6 @@ export default function ChessTutorial() {
             engineBestMove={engineBestMove}
             interactiveTrial={interactiveTrial}
             engineDepth={engineDepth}
-            onOpenPerformance={() => setIsPerformanceOpen(true)}
           />
 
           {/* Stockfish 18 Engine Memory & Performance Widget */}
@@ -582,7 +609,6 @@ export default function ChessTutorial() {
             engineDepth={engineDepth}
             analysisTimeMs={analysisTimeMs}
             engineBestMove={engineBestMove}
-            onOpenPerformance={() => setIsPerformanceOpen(true)}
           />
         </div>
 
@@ -642,6 +668,12 @@ export default function ChessTutorial() {
               <MoveStatsPanel
                 moveStats={moveStats}
                 totalMoves={history.length}
+                isDefaultGame={isDefaultGame}
+                isAnalyzingGame={isAnalyzingGame}
+                analysisProgress={analysisProgress}
+                onRunAnalysis={() => {
+                  runAnalysis(activePgn);
+                }}
               />
 
               {/* Move List Navigation Table */}

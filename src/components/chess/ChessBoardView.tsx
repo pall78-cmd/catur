@@ -97,7 +97,7 @@ export const ChessBoardView: React.FC<ChessBoardViewProps> = React.memo(({
       if (!success) {
         // If clicking another piece, check if it's ours by attempting to get moves
         const chess = new Chess(activeFen);
-        const moves = chess.moves({ square, verbose: true });
+        const moves = chess.moves({ square: square as any, verbose: true }) as any[];
         if (moves.length > 0) {
            setMoveFrom(square);
            setLegalTargetSquares(moves.map(m => m.to));
@@ -111,7 +111,7 @@ export const ChessBoardView: React.FC<ChessBoardViewProps> = React.memo(({
       }
     } else {
       const chess = new Chess(activeFen);
-      const moves = chess.moves({ square, verbose: true });
+      const moves = chess.moves({ square: square as any, verbose: true }) as any[];
       if (moves.length > 0) {
         setMoveFrom(square);
         setLegalTargetSquares(moves.map(m => m.to));
@@ -181,6 +181,7 @@ export const ChessBoardView: React.FC<ChessBoardViewProps> = React.memo(({
         {/* Board Container */}
         <div className="flex-1 aspect-square relative rounded-lg overflow-hidden shadow-sm border border-neutral-300/60 z-10">
           <Chessboard
+            // @ts-ignore - TS doesn't know about key here but we need it to remount
             key={boardOrientation}
             options={chessboardOptions}
           />

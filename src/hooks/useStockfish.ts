@@ -51,6 +51,12 @@ export function useStockfish(
 
       // UCI Engine Protocol Configuration
       worker.postMessage('uci');
+      
+      const threads = typeof navigator !== "undefined" && navigator.hardwareConcurrency 
+        ? Math.max(1, navigator.hardwareConcurrency - 1) 
+        : 2;
+      worker.postMessage(`setoption name Threads value ${threads}`);
+      worker.postMessage('setoption name MultiPV value 3');
       worker.postMessage(`setoption name Hash value ${hashSize}`);
       worker.postMessage('isready');
 

@@ -7,6 +7,30 @@ import {
   MovePairItem
 } from '../types/chess';
 
+import { cpToWinPercent, winPercentLoss } from '../lib/analysis/winPercent';
+import { classifyMove, LABEL_ID } from '../lib/analysis/moveClassifier';
+import { explainMove } from '../lib/analysis/explainer';
+import { findMotifs } from '../lib/analysis/motifs';
+import { isBookMove, findOpening } from '../lib/analysis/openingBook';
+
+export function parseToCpAndMate(evalStr?: string): { cp: number | null, mate: number | null } {
+  if (!evalStr || evalStr.includes('Mengevaluasi') || evalStr.includes('Gagal')) {
+    return { cp: null, mate: null };
+  }
+  if (evalStr === '0.00' || evalStr === '0.0' || evalStr === '0') return { cp: 0, mate: null };
+  
+  const mateMatch = evalStr.match(/([+-]?)M(\d+)/i);
+  if (mateMatch) {
+    const sign = mateMatch[1] === '-' ? -1 : 1;
+    const movesToMate = parseInt(mateMatch[2], 10) || 1;
+    return { cp: null, mate: sign * movesToMate };
+  }
+
+  const cleanStr = evalStr.replace('+', '').trim();
+  const num = parseFloat(cleanStr);
+  return { cp: isNaN(num) ? null : Math.round(num * 100), mate: null };
+}
+
 export function parseEvalValue(evalStr?: string): number | null {
   if (!evalStr || evalStr.includes('Mengevaluasi') || evalStr === '0.00' || evalStr === '0.0') return 0;
   
@@ -67,27 +91,43 @@ export function getDynamicAnnotation(
 
   // Check for embedded PGN comments/annotations
   let pgnCommentAnn = '';
+  let engLabel = '';
   if ((move as any).comments && Array.isArray((move as any).comments) && (move as any).comments.length > 0) {
     const commentStr = (move as any).comments.map((c: any) => c.text || c).join(' ');
-    if (commentStr.includes('!!') || commentStr.toLowerCase().includes('brilliant')) pgnCommentAnn = 'Brilian';
-    else if (commentStr.includes('??') || commentStr.toLowerCase().includes('blunder')) pgnCommentAnn = 'Blunder';
-    else if (commentStr.includes('!?') || commentStr.includes('?!') || commentStr.toLowerCase().includes('inaccuracy')) pgnCommentAnn = 'Ketidakakuratan';
-    else if (commentStr.includes('?') || commentStr.toLowerCase().includes('mistake')) pgnCommentAnn = 'Kesalahan';
-    else if (commentStr.includes('!') || commentStr.toLowerCase().includes('best') || commentStr.toLowerCase().includes('great')) pgnCommentAnn = 'Terbaik';
+    if (commentStr.includes('!!') || commentStr.toLowerCase().includes('brilliant')) { pgnCommentAnn = 'Brilian'; engLabel = 'Brilliant'; }
+    else if (commentStr.includes('??') || commentStr.toLowerCase().includes('blunder')) { pgnCommentAnn = 'Blunder'; engLabel = 'Blunder'; }
+    else if (commentStr.includes('!?') || commentStr.includes('?!') || commentStr.toLowerCase().includes('inaccuracy')) { pgnCommentAnn = 'Ketidakakuratan'; engLabel = 'Inaccuracy'; }
+    else if (commentStr.includes('?') || commentStr.toLowerCase().includes('mistake')) { pgnCommentAnn = 'Kesalahan'; engLabel = 'Mistake'; }
+    else if (commentStr.includes('!') || commentStr.toLowerCase().includes('best') || commentStr.toLowerCase().includes('great')) { pgnCommentAnn = 'Terbaik'; engLabel = 'Best'; }
   }
 
   // Calculate eval delta
-  const currEvalVal = parseEvalValue(effectiveEvalStr);
-  const prevEvalVal = moveIndex > 0 ? parseEvalValue(prevEvalStr) : 0.3; // Default start evaluation +0.3
+  const currEvalVal = parseToCpAndMate(effectiveEvalStr);
+  const prevEvalVal = moveIndex > 0 ? parseToCpAndMate(prevEvalStr) : { cp: 30, mate: null }; // Default start evaluation +0.3 (30cp)
 
   let evalLoss: number | null = null;
-  let playerBeforeVal: number | null = null;
-  let playerAfterVal: number | null = null;
+  let wpBefore: number | null = null;
+  let wpAfter: number | null = null;
 
-  if (currEvalVal !== null && prevEvalVal !== null) {
-    playerBeforeVal = isWhite ? prevEvalVal : -prevEvalVal;
-    playerAfterVal = isWhite ? currEvalVal : -currEvalVal;
-    evalLoss = playerBeforeVal - playerAfterVal;
+  if (currEvalVal.cp !== null || currEvalVal.mate !== null) {
+    if (prevEvalVal.cp !== null || prevEvalVal.mate !== null) {
+      const c1Cp = prevEvalVal.cp;
+      const c1Mate = prevEvalVal.mate;
+      
+      const c2Cp = currEvalVal.cp;
+      const c2Mate = currEvalVal.mate;
+
+      // Calculate win percentages from the perspective of the player making the move:
+      if (isWhite) {
+        wpBefore = cpToWinPercent(c1Cp, c1Mate);
+        wpAfter = cpToWinPercent(c2Cp, c2Mate);
+      } else {
+        wpBefore = 100 - cpToWinPercent(c1Cp, c1Mate);
+        wpAfter = 100 - cpToWinPercent(c2Cp, c2Mate);
+      }
+
+      evalLoss = winPercentLoss(wpBefore, wpAfter);
+    }
   }
 
   // Evaluation classification
@@ -104,52 +144,34 @@ export function getDynamicAnnotation(
     } else if (isDraw) {
       evaluation = 'Remis';
     } else if (move.isForced || (isMateSeq && isCheck && move.piece === 'k')) {
-      // Forced move (e.g. escaping check/mate when only 1 response exists)
       evaluation = 'Langkah Paksaan';
-    } else if (move.captured) {
-      const pieceVal: Record<string, number> = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
-      const capVal = pieceVal[move.captured] || 1;
-      const atkVal = pieceVal[move.piece] || 1;
+    } else if (effectiveEvalStr && wpBefore !== null && wpAfter !== null) {
+      const { label } = classifyMove(wpBefore, wpAfter, isBest, false);
+      engLabel = label;
+      evaluation = (LABEL_ID as any)[label] || label;
 
-      // Sacrifice of higher value piece or tactical sacrifice maintaining advantage
-      if ((atkVal > capVal || (move.piece === 'q' && capVal < 9)) && (evalLoss !== null && evalLoss <= 0.25)) {
-        evaluation = 'Brilian';
-      } else if (isBest) {
-        evaluation = 'Terbaik';
-      } else if (evalLoss !== null && evalLoss <= 0.3) {
-        evaluation = 'Bagus';
-      } else if (evalLoss !== null && evalLoss >= 2.0) {
-        evaluation = 'Blunder';
-      } else if (evalLoss !== null && evalLoss >= 1.0) {
-        evaluation = 'Kesalahan';
-      } else {
-        evaluation = 'Bagus';
+      // Print detailed Indonesian developer log
+      console.log(`%c[CHESS ANALYZER LOG] Langkah #${moveIndex + 1} (${isWhite ? 'Putih' : 'Hitam'}): ${move.san}`, 'font-weight: bold; color: #6366f1;');
+      console.log(`  - Posisi Sebelum (Langkah #${moveIndex}): ${prevEvalStr ? `"${prevEvalStr}"` : 'KOSONG (Menggunakan fallback +0.00)'} (Win%: ${wpBefore.toFixed(1)}%)`);
+      console.log(`  - Posisi Sesudah (Langkah #${moveIndex + 1}): "${effectiveEvalStr}" (Win%: ${wpAfter.toFixed(1)}%)`);
+      console.log(`  - Selisih Win% (winPercentLoss): ${evalLoss !== null ? `${evalLoss.toFixed(1)}%` : 'N/A'}`);
+      console.log(`  - Klasifikasi: "${label}" (Translasi ID: "${evaluation}")`);
+      if (!prevEvalStr && moveIndex > 0) {
+        console.warn(`  [PERINGATAN] Evaluasi langkah sebelumnya kosong. winPercentLoss dihitung terhadap baseline +0.00, sehingga klasifikasi Blunder/Kesalahan mungkin tidak akurat.`);
       }
     } else if (isBest) {
+      engLabel = 'Best';
       evaluation = 'Terbaik';
     } else if (move.san === 'O-O' || move.san === 'O-O-O' || move.promotion) {
+      engLabel = 'Best';
       evaluation = 'Terbaik';
-    } else if (moveIndex <= 12 && ['e4', 'e5', 'd4', 'd5', 'c4', 'c5', 'Nf3', 'Nf6', 'Nc3', 'Nc6', 'Bb5', 'Bc4', 'Bg5', 'Be2', 'Be3', 'Bf4', 'g6', 'e6', 'c6', 'd6', 'a6', 'b6', 'g3', 'b3', 'f4', 'Ne5', 'Ne4', 'd3'].includes(move.san)) {
-      evaluation = 'Teori';
-    } else if (evalLoss !== null) {
-      // Missed opportunity check: Had winning position (> 2.0 pawns or mate) but lost advantage (< 0.5 pawns)
-      if (playerBeforeVal !== null && playerBeforeVal >= 2.0 && playerAfterVal !== null && playerAfterVal <= 0.5) {
-        evaluation = 'Langkah Terlewat';
-      } else if (evalLoss >= 2.5) {
-        evaluation = 'Blunder';
-      } else if (evalLoss >= 1.2) {
-        evaluation = 'Kesalahan';
-      } else if (evalLoss >= 0.5) {
-        evaluation = 'Ketidakakuratan';
-      } else if (evalLoss <= 0.15) {
-        evaluation = 'Terbaik';
-      } else {
-        evaluation = 'Bagus';
-      }
-    } else if (isCheck) {
-      evaluation = 'Skak';
     } else {
+      engLabel = 'Good';
       evaluation = 'Bagus';
+      
+      if (!isDefaultGame && effectiveEvalStr) {
+        console.log(`[CHESS ANALYZER LOG] Langkah #${moveIndex + 1} (${isWhite ? 'Putih' : 'Hitam'}): ${move.san} dievaluasi "${effectiveEvalStr}" tapi kekurangan data posisi sebelumnya untuk mengukur selisih secara akurat. Default ke: "Bagus".`);
+      }
     }
   }
 
@@ -160,51 +182,16 @@ export function getDynamicAnnotation(
     };
   }
 
-  // Dynamic Narrative text builder
-  let annotationText = '';
-  if (evaluation === 'Skakmat') {
-    annotationText = `Skakmat sempurna! ${pieceName} ${colorName} mengunci Raja lawan di petak ${toSq} tanpa adanya jalan keluar. Permainan selesai!`;
-  } else if (evaluation === 'Remis') {
-    annotationText = `Posisi berakhir remis (${colorName} melangkah ${pieceName} ke ${toSq}). Keseimbangan material dan posisi tercapai.`;
-  } else if (evaluation === 'Langkah Terlewat') {
-    annotationText = `${colorName} melewatkan peluang taktis emas atau kemenangan langsung (${pieceName} ke ${toSq}). Rekomendasi Stockfish akan mempertahankan dominasi posisi secara signifikan.`;
-  } else if (evaluation === 'Langkah Paksaan') {
-    annotationText = `${colorName} melangkah secara terpaksa (${pieceName} ke ${toSq}) untuk merespons skak atau ancaman langsung demi keselamatan Raja.`;
-  } else if (evaluation === 'Blunder') {
-    annotationText = `${colorName} membuat kesalahan fatal (Blunder) dengan melangkah ${pieceName} ke ${toSq}. Langkah ini memberikan keunggulan atau taktik balasan besar bagi lawan.`;
-  } else if (evaluation === 'Kesalahan') {
-    annotationText = `Langkah kurang tepat (${pieceName} ke ${toSq}) oleh ${colorName}. Evaluasi posisi menurun karena melemahkan pertahanan atau kontrol petak kunci.`;
-  } else if (evaluation === 'Ketidakakuratan') {
-    annotationText = `Sedikit tidak akurat: ${colorName} menggeser ${pieceName} ke ${toSq}. Terdapat alternatif langkah yang lebih kokoh dalam koordinasi perwira.`;
-  } else if (evaluation === 'Brilian') {
-    annotationText = `Langkah Brilian! ${colorName} mengorbankan material ${pieceName} ke ${toSq} untuk membuka jalur serangan mematikan atau kombinasi taktis tingkat tinggi.`;
-  } else if (move.san === 'O-O') {
-    annotationText = `${colorName} melakukan rokade pendek (sisi raja) untuk mengamankan lokasi Raja ke sudut dan mempercepat mobilisasi Benteng.`;
-  } else if (move.san === 'O-O-O') {
-    annotationText = `${colorName} melakukan rokade panjang (sisi menteri), mengamankan Raja di petak tepi sambil menempatkan Benteng di jalur pusat.`;
-  } else if (move.captured) {
-    const capName = getPieceName(move.captured);
-    annotationText = `${colorName} melancarkan tangkapan taktis: ${pieceName} di ${fromSq} merebut ${capName} lawan di ${toSq}.${move.san.includes('+') ? ' Disertai ancaman skak langsung!' : ''}`;
-  } else if (move.san.includes('+')) {
-    annotationText = `${colorName} menekan pertahanan lawan dengan skak tajam dari ${pieceName} di petak ${toSq}, memaksa pertahanan darurat.`;
-  } else if (move.promotion) {
-    const promName = getPieceName(move.promotion);
-    annotationText = `${colorName} berhasil mendesak Bidak hingga petak ${toSq} dan mempromosikannya menjadi ${promName}.`;
-  } else if (evaluation === 'Teori') {
-    annotationText = `Langkah teori pembukaan standar. ${colorName} menggerakkan ${pieceName} (${fromSq} → ${toSq}) untuk mengontrol petak pusat dan mempercepat perkembangan perwira.`;
-  } else if (moveIndex < 16) {
-    if (move.piece === 'n' || move.piece === 'b') {
-      annotationText = `${colorName} menggeser ${pieceName} dari ${fromSq} ke ${toSq} untuk mengembangkan perwira awal dan menguasai petak strategis.`;
-    } else if (move.piece === 'p') {
-      annotationText = `${colorName} melangkah ke ${toSq} dengan Bidak, memperkuat dominasi area pusat papan catur.`;
-    } else {
-      annotationText = `${colorName} memindahkan ${pieceName} ke ${toSq} untuk mengatur susunan perwira awal permainan.`;
-    }
-  } else if (moveIndex < 45) {
-    annotationText = `${colorName} memobilisasi ${pieceName} ke ${toSq}. Langkah pertengahan yang mempertajam inisiatif serta serangan kombinasi taktis.`;
-  } else {
-    annotationText = `${colorName} mendorong ${pieceName} ke ${toSq} untuk memprioritaskan akselerasi bidak bebas dan posisi akhir Raja.`;
-  }
+  // Dynamic Narrative text builder using explainer
+  const annotationText = explainMove({
+    moveSan: move.san,
+    classification: engLabel || 'Good',
+    winPercentLoss: evalLoss || 0,
+    isBookMove: evaluation === 'Teori',
+    openingName: null,
+    motifs: [], // Without full game context in this loop, we skip deep motifs
+    bestLineSan: [] 
+  });
 
   // Alternative recommendations
   let alternatives: string | undefined = undefined;

@@ -1,15 +1,23 @@
 import React from 'react';
-import { BarChart2 } from 'lucide-react';
+import { BarChart2, Cpu, Loader2 } from 'lucide-react';
 import { MoveStatsSummary } from '../../types/chess';
 
 interface MoveStatsPanelProps {
   moveStats: MoveStatsSummary;
   totalMoves: number;
+  isDefaultGame?: boolean;
+  isAnalyzingGame?: boolean;
+  analysisProgress?: { current: number; total: number };
+  onRunAnalysis?: () => void;
 }
 
 export const MoveStatsPanel: React.FC<MoveStatsPanelProps> = React.memo(({
   moveStats,
   totalMoves,
+  isDefaultGame = true,
+  isAnalyzingGame = false,
+  analysisProgress = { current: 0, total: 0 },
+  onRunAnalysis,
 }) => {
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 p-4 flex flex-col gap-3">
@@ -93,6 +101,53 @@ export const MoveStatsPanel: React.FC<MoveStatsPanelProps> = React.memo(({
           <span className="font-bold bg-indigo-200/80 px-1.5 py-0.5 rounded text-[11px]">{moveStats.totalStats.Paksaan}</span>
         </div>
       </div>
+
+      {!isDefaultGame && totalMoves > 0 && (
+        <div className="flex flex-col gap-2 mt-2 pt-2 border-t border-neutral-100">
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">
+              Analisis Mesin Stockfish
+            </span>
+            {isAnalyzingGame && (
+              <span className="text-[10px] font-mono text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded font-bold">
+                {analysisProgress?.current}/{analysisProgress?.total} langkah
+              </span>
+            )}
+          </div>
+          
+          {isAnalyzingGame ? (
+            <div className="flex flex-col gap-1.5">
+              <button
+                disabled
+                className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-indigo-50 border border-indigo-200/80 rounded-xl text-indigo-700 text-xs font-bold shadow-xs cursor-not-allowed"
+              >
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+                <span>Menganalisis Permainan Kustom...</span>
+              </button>
+              <div className="w-full h-1.5 bg-neutral-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-indigo-500 rounded-full transition-all duration-300"
+                  style={{
+                    width: `${
+                      analysisProgress?.total
+                        ? (analysisProgress.current / analysisProgress.total) * 100
+                        : 0
+                    }%`,
+                  }}
+                />
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={onRunAnalysis}
+              className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white rounded-xl text-xs font-bold transition-all shadow-xs hover:shadow-md cursor-pointer"
+            >
+              <Cpu className="w-3.5 h-3.5" />
+              <span>Mulai Analisis Penuh Stockfish</span>
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 });
