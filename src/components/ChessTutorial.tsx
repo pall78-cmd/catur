@@ -11,7 +11,8 @@ import { useGameAnalysis } from '../lib/analysis/useGameAnalysis';
 import { 
   getDynamicAnnotation, 
   calculateMoveStats, 
-  generateFullPgn 
+  generateFullPgn,
+  clearAnnotationCache
 } from '../utils/chessAnnotations';
 import { MovePairItem, InteractiveTrial, EngineBestMove } from '../types/chess';
 
@@ -26,9 +27,9 @@ import { MoveListTable } from './chess/MoveListTable';
 import { PgnExportCard } from './chess/PgnExportCard';
 import { PgnLibraryModal } from './chess/PgnLibraryModal';
 import { PromotionModal } from './chess/PromotionModal';
+import { EvaluationGraph } from './chess/EvaluationGraph';
 
 export default function ChessTutorial() {
-  const [game, setGame] = useState(() => new Chess());
   const [currentMoveIndex, setCurrentMoveIndex] = useState(-1);
   const [isPlaying, setIsPlaying] = useState(false);
   const [boardOrientation, setBoardOrientation] = useState<'white' | 'black'>('white');
@@ -50,13 +51,18 @@ export default function ChessTutorial() {
   // Per-move evaluation cache for accurate Stockfish analysis across all PGN positions
   const [perMoveEvalMap, setPerMoveEvalMap] = useState<Record<number, { evaluation?: string; engineBestMove?: EngineBestMove | null }>>({});
 
-  // Parsed game based on activePgn
+  // Parsed game based on activePgn (supports PGN string or FEN string)
   const fullGame = useMemo(() => {
     const cg = new Chess();
+    if (!activePgn) return cg;
     try {
       cg.loadPgn(activePgn);
     } catch (e) {
-      console.error('PGN load error:', e);
+      try {
+        cg.load(activePgn);
+      } catch (err) {
+        console.error('PGN/FEN load error:', err);
+      }
     }
     return cg;
   }, [activePgn]);
@@ -80,7 +86,7 @@ export default function ChessTutorial() {
   }, [interactiveTrial, currentMoveIndex, history.length, fenHistory]);
 
   // Stockfish 18 evaluation via custom hook (Depth 18 for enhanced tactical analysis)
-  const { evaluation, engineBestMove, engineDepth, analysisTimeMs, clearEngineHash } = useStockfish(activeFen, { targetDepth: 18 });
+  const { evaluation, engineBestMove, engineDepth, analysisTimeMs, clearEngineHash, analyzedFen } = useStockfish(activeFen, { targetDepth: 18 });
 
   // Instant cached evaluation retrieval
   const currentEvaluation = useMemo(() => {
@@ -99,18 +105,28 @@ export default function ChessTutorial() {
     return engineBestMove;
   }, [interactiveTrial, currentMoveIndex, perMoveEvalMap, engineBestMove]);
 
-  // Cache Stockfish evaluation for current move index when active
+  // Cache Stockfish evaluation for current move index when active (strictly guarded against stale FENs)
   useEffect(() => {
-    if (currentMoveIndex >= 0 && !interactiveTrial && evaluation && !evaluation.includes('Mengevaluasi') && !evaluation.includes('Gagal')) {
+    if (
+      currentMoveIndex >= 0 &&
+      !interactiveTrial &&
+      analyzedFen === activeFen &&
+      evaluation &&
+      !evaluation.includes('Mengevaluasi') &&
+      !evaluation.includes('Gagal')
+    ) {
       setPerMoveEvalMap(prev => {
-        if (prev[currentMoveIndex]?.evaluation === evaluation) return prev;
+        if (
+          prev[currentMoveIndex]?.evaluation === evaluation &&
+          prev[currentMoveIndex]?.engineBestMove === engineBestMove
+        ) return prev;
         return {
           ...prev,
           [currentMoveIndex]: { evaluation, engineBestMove }
         };
       });
     }
-  }, [currentMoveIndex, interactiveTrial, evaluation, engineBestMove]);
+  }, [currentMoveIndex, interactiveTrial, evaluation, engineBestMove, analyzedFen, activeFen]);
 
   // useGameAnalysis hook for background scanning of loaded PGN games
   const { 
@@ -151,9 +167,10 @@ export default function ChessTutorial() {
   }, [isCustomMode, activePgn]);
 
   const detectedOpening = useMemo(() => {
-    const opening = detectOpening(history);
+    const currentHistory = currentMoveIndex >= 0 ? history.slice(0, currentMoveIndex + 1) : history;
+    const opening = detectOpening(currentHistory);
     return opening ? opening.name : null;
-  }, [history]);
+  }, [history, currentMoveIndex]);
 
   const activeOverview = useMemo(() => {
     if (isCustomMode) {
@@ -311,10 +328,14 @@ export default function ChessTutorial() {
       const trialBase = new Chess();
       if (interactiveTrial) {
         trialBase.load(interactiveTrial.fen);
-      } else {
-        for (let i = 0; i <= currentMoveIndex; i++) {
-          if (history[i]) trialBase.move(history[i]);
+      } else if (currentMoveIndex === history.length - 1 && activePgn) {
+        try {
+          trialBase.loadPgn(activePgn);
+        } catch (e) {
+          trialBase.load(activeFen);
         }
+      } else {
+        trialBase.load(activeFen);
       }
 
       const move = trialBase.move({
@@ -336,17 +357,17 @@ export default function ChessTutorial() {
         const isAtEndOfHistory = currentMoveIndex === history.length - 1;
 
         if (isVeryFirstMove) {
+          clearAnnotationCache();
           setActivePgn(trialBase.pgn());
           setIsCustomMode(true);
           setCurrentMoveIndex(0);
           setInteractiveTrial(null);
-          setGame(trialBase);
         } else if ((isCustomMode || isAtEndOfHistory) && !interactiveTrial) {
+          clearAnnotationCache();
           setActivePgn(trialBase.pgn());
           setIsCustomMode(true);
-          setCurrentMoveIndex(prev => prev + 1);
+          setCurrentMoveIndex(history.length);
           setInteractiveTrial(null);
-          setGame(trialBase);
         } else {
           setInteractiveTrial({
             move,
@@ -359,20 +380,14 @@ export default function ChessTutorial() {
       // invalid move
     }
     return false;
-  }, [currentMoveIndex, history, isMuted, interactiveTrial, isCustomMode]);
+  }, [currentMoveIndex, history.length, isMuted, interactiveTrial, isCustomMode, activePgn, activeFen]);
 
   // Handle Drag-and-Drop and Click-to-Move interactive move review & manual play
   const handlePieceDrop = useCallback((sourceSquare: string, targetSquare: string): boolean => {
     try {
-      // Reconstruct board to validate
+      // Reconstruct active board state in O(1) time
       const trialBase = new Chess();
-      if (interactiveTrial) {
-        trialBase.load(interactiveTrial.fen);
-      } else {
-        for (let i = 0; i <= currentMoveIndex; i++) {
-          if (history[i]) trialBase.move(history[i]);
-        }
-      }
+      trialBase.load(activeFen);
 
       // Check if this move requires promotion
       const piece = trialBase.get(sourceSquare as any);
@@ -391,20 +406,22 @@ export default function ChessTutorial() {
       // Invalid drop
     }
     return false;
-  }, [currentMoveIndex, history, interactiveTrial, applyMove]);
+  }, [activeFen, applyMove]);
 
   // Handle loading custom FEN or PGN
   const handleLoadInput = useCallback(() => {
     setInputFeedback(null);
     setInteractiveTrial(null);
     setPerMoveEvalMap({});
+    clearAnnotationCache();
     const str = customInput.trim();
     if (!str) return;
 
     // 1. Try loading as FEN
     try {
-      const fenGame = new Chess(str);
-      setGame(fenGame);
+      const fenGame = new Chess();
+      fenGame.load(str);
+      setActivePgn(str);
       setIsCustomMode(true);
       setCurrentMoveIndex(-1);
       setIsPlaying(false);
@@ -421,8 +438,6 @@ export default function ChessTutorial() {
       if (pgnGame.history().length > 0) {
         setActivePgn(str);
         setIsCustomMode(false);
-        const resetGame = new Chess();
-        setGame(resetGame);
         setCurrentMoveIndex(-1);
         setIsPlaying(false);
         setInputFeedback({ type: 'success', message: `PGN berhasil dimuat (${pgnGame.history().length} langkah)!` });
@@ -436,14 +451,13 @@ export default function ChessTutorial() {
   }, [customInput]);
 
   const handleResetGame = useCallback(() => {
+    clearAnnotationCache();
     setActivePgn('');
     setIsCustomMode(true);
     setCustomInput('');
     setInteractiveTrial(null);
     setPerMoveEvalMap({});
     setInputFeedback({ type: 'success', message: 'Seluruh langkah telah dikosongkan. Silakan gerakkan bidak putih untuk memulai permainan baru.' });
-    const resetGame = new Chess();
-    setGame(resetGame);
     setCurrentMoveIndex(-1);
     setIsPlaying(false);
   }, []);
@@ -578,12 +592,11 @@ export default function ChessTutorial() {
       const pgnGame = new Chess();
       pgnGame.loadPgn(presetPgn);
       if (pgnGame.history().length > 0) {
+        clearAnnotationCache();
         setActivePgn(presetPgn);
         setIsCustomMode(false);
         setCustomInput('');
         setInteractiveTrial(null);
-        const resetGame = new Chess();
-        setGame(resetGame);
         setCurrentMoveIndex(-1);
         setIsPlaying(false);
         setInputFeedback({ type: 'success', message: 'Game contoh berhasil dimuat!' });
@@ -702,6 +715,18 @@ export default function ChessTutorial() {
 
           {rightPanelTab === 'moves' ? (
             <div className="flex flex-col gap-3 animate-in fade-in duration-150">
+              {/* Evaluation Graph */}
+              <EvaluationGraph 
+                perMoveEvalMap={perMoveEvalMap}
+                history={history}
+                currentMoveIndex={currentMoveIndex}
+                onNodeClick={(idx) => {
+                  setIsCustomMode(false);
+                  setInteractiveTrial(null);
+                  goToMove(idx);
+                }}
+              />
+
               {/* Move Quality Statistics Summary Panel */}
               <MoveStatsPanel
                 moveStats={moveStats}

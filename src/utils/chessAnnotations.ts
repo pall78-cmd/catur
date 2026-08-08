@@ -61,6 +61,12 @@ export function getPieceName(pieceType: string): string {
   }
 }
 
+const annotationCache = new Map<string, DynamicAnnotationResult | null>();
+
+export function clearAnnotationCache() {
+  annotationCache.clear();
+}
+
 export function getDynamicAnnotation(
   move: any,
   moveIndex: number,
@@ -73,13 +79,6 @@ export function getDynamicAnnotation(
   verboseHistory?: any[]
 ): DynamicAnnotationResult | null {
   if (moveIndex < 0 || !move) return null;
-  const plyNumber = moveIndex + 1;
-  const baseAnn = (isDefaultGame && annotations[plyNumber]) ? annotations[plyNumber] : null;
-  const colorName = move.color === 'w' ? 'Putih' : 'Hitam';
-  const isWhite = move.color === 'w';
-  const pieceName = getPieceName(move.piece);
-  const fromSq = move.from;
-  const toSq = move.to;
 
   // Stockfish data for current move
   const perMoveData = perMoveEvalMap ? perMoveEvalMap[moveIndex] : undefined;
@@ -89,6 +88,19 @@ export function getDynamicAnnotation(
   // Stockfish data for previous position (before this move)
   const prevMoveData = (moveIndex > 0 && perMoveEvalMap) ? perMoveEvalMap[moveIndex - 1] : undefined;
   const prevEvalStr = prevMoveData?.evaluation || (currentActiveMoveIndex === moveIndex - 1 ? evalStr : '');
+
+  const cacheKey = `${moveIndex}_${move.after || ''}_${move.san || ''}_${effectiveEvalStr}_${prevEvalStr}_${isDefaultGame}`;
+  if (annotationCache.has(cacheKey)) {
+    return annotationCache.get(cacheKey)!;
+  }
+
+  const plyNumber = moveIndex + 1;
+  const baseAnn = (isDefaultGame && annotations[plyNumber]) ? annotations[plyNumber] : null;
+  const colorName = move.color === 'w' ? 'Putih' : 'Hitam';
+  const isWhite = move.color === 'w';
+  const pieceName = getPieceName(move.piece);
+  const fromSq = move.from;
+  const toSq = move.to;
 
   // Fallback to on-the-fly heuristic if evaluation is missing
   let finalEvalStr = effectiveEvalStr;
@@ -206,14 +218,15 @@ export function getDynamicAnnotation(
   let isBook = false;
   let openingMatch = null;
   if (verboseHistory && Array.isArray(verboseHistory)) {
-    const sanHistory = verboseHistory.map(m => m.san || '');
+    const sanHistory = verboseHistory.map(m => typeof m === 'string' ? m : (m?.san || ''));
     isBook = isBookMove(sanHistory, moveIndex);
     openingMatch = findOpening(sanHistory.slice(0, moveIndex + 1));
   }
 
-  if (!evaluation) {
-    const isCheck = move.san.includes('+');
-    const isMate = move.san.includes('#');
+  const isCheck = move.san.includes('+');
+  const isMate = move.san.includes('#');
+
+  if (!evaluation || (isBook && evaluation !== 'Skakmat' && evaluation !== 'Remis' && evaluation !== 'Blunder' && evaluation !== 'Brilian')) {
     let isDraw = false;
 
     // Check actual game state for draws
@@ -259,10 +272,12 @@ export function getDynamicAnnotation(
   }
 
   if (baseAnn) {
-    return {
+    const res = {
       ...baseAnn,
       evaluation
     };
+    annotationCache.set(cacheKey, res);
+    return res;
   }
 
   // Dynamic Narrative text builder using explainer
@@ -282,11 +297,13 @@ export function getDynamicAnnotation(
     alternatives = `Saran Stockfish: Menggerakkan dari ${effectiveBestMove.from} ke ${effectiveBestMove.to} dievaluasi lebih kuat untuk mendukung koordinasi (${effectiveEvalStr}).`;
   }
 
-  return {
+  const finalResult = {
     evaluation,
     annotation: annotationText,
     alternatives
   };
+  annotationCache.set(cacheKey, finalResult);
+  return finalResult;
 }
 
 export function getPositionEvalSymbol(evalStr?: string): string {

@@ -6,7 +6,7 @@ import { findMotifs } from "./motifs.js";
 import { explainMove } from "./explainer.js";
 import { pvToSan } from "./stockfishEngine.js";
 
-export async function analyzeGame(pgn, analyzer, { depth = 22, onProgress } = {}) {
+export async function analyzeGame(pgn, analyzer, { depth = 20, onProgress } = {}) {
   const parser = new Chess();
   parser.loadPgn(pgn);
   const verboseHistory = parser.history({ verbose: true });

@@ -28,6 +28,8 @@ export function useStockfishApi(
   const [error, setError] = useState<string | null>(null);
 
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const activeFenRef = useRef<string>(activeFen);
+  activeFenRef.current = activeFen;
 
   useEffect(() => {
     if (debounceTimerRef.current) {
@@ -37,9 +39,12 @@ export function useStockfishApi(
     setEvaluation('Mengevaluasi...');
     setIsLoading(true);
 
+    const currentTargetFen = activeFen;
+
     debounceTimerRef.current = setTimeout(async () => {
       try {
-        const result = await getStockfishEvaluationFromApi(activeFen, targetDepth);
+        const result = await getStockfishEvaluationFromApi(currentTargetFen, targetDepth);
+        if (activeFenRef.current !== currentTargetFen) return; // Discard stale response
         setEvaluation(result.evaluation);
         setEngineBestMove(result.engineBestMove);
         setEngineDepth(result.engineDepth);
@@ -47,6 +52,7 @@ export function useStockfishApi(
         setSource(result.source);
         setIsLoading(false);
       } catch (err: any) {
+        if (activeFenRef.current !== currentTargetFen) return;
         setEvaluation('Gagal memproses');
         setError(err?.message || 'Error API Stockfish');
         setIsLoading(false);

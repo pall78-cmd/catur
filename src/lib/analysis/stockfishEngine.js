@@ -306,10 +306,11 @@ export class StockfishAnalyzer {
       const timeoutId = setTimeout(() => {
         if (!resolved) {
           resolved = true;
+          const linesToReturn = this._currentAnalysis?.lines?.filter(Boolean) || [];
+          this._send("stop");
           this._currentAnalysis = null;
-          const errMsg = `Stockfish analysis timed out: no response from engine within ${timeout}ms.`;
-          console.error(`[Stockfish Engine] ${errMsg}`);
-          reject(new Error(errMsg));
+          console.warn(`[Stockfish Engine] Analysis timed out for fen ${fen}, resolving with current lines or empty.`);
+          resolve(linesToReturn);
         }
       }, timeout);
 
@@ -326,12 +327,13 @@ export class StockfishAnalyzer {
           if (!resolved) {
             resolved = true;
             clearTimeout(timeoutId);
-            reject(err);
+            resolve([]);
           }
         },
         timeoutId
       };
 
+      this._send("stop");
       this._send(`position fen ${fen}`);
       this._send(`go depth ${depth}`);
     });

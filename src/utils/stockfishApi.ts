@@ -44,6 +44,7 @@ export function formatEvaluation(scoreCp: number | null | undefined, scoreMate: 
     if (sideToMove === 'b') {
       val = -val;
     }
+    if (Math.abs(val) < 0.001) return '0.00';
     return val > 0 ? `+${val.toFixed(2)}` : val.toFixed(2);
   }
 

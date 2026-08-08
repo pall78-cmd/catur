@@ -32,9 +32,13 @@ export function isPinned(chess, square) {
 
   if (chess.isAttacked(kingSquare, enemyColor)) return false;
 
+  let exposedAfterRemoval = false;
   chess.remove(square);
-  const exposedAfterRemoval = chess.isAttacked(kingSquare, enemyColor);
-  chess.put(piece, square);
+  try {
+    exposedAfterRemoval = chess.isAttacked(kingSquare, enemyColor);
+  } finally {
+    chess.put(piece, square);
+  }
 
   return exposedAfterRemoval;
 }
@@ -72,19 +76,23 @@ function getAttackedSquares(chess, square) {
   const fenParts = originalFen.split(" ");
   const currentTurn = fenParts[1];
 
-  if (currentTurn !== piece.color) {
-    fenParts[1] = piece.color;
-    try {
+  let targets = [];
+  try {
+    if (currentTurn !== piece.color) {
+      fenParts[1] = piece.color;
       chess.load(fenParts.join(" "));
-    } catch (e) {
-      return [];
     }
+
+    const moves = chess.moves({ square, verbose: true });
+    targets = moves.map((m) => m.to);
+  } catch (e) {
+    targets = [];
+  } finally {
+    try {
+      chess.load(originalFen);
+    } catch (e) {}
   }
 
-  const moves = chess.moves({ square, verbose: true });
-  const targets = moves.map((m) => m.to);
-
-  chess.load(originalFen);
   return targets;
 }
 

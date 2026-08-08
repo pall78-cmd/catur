@@ -76,7 +76,8 @@ export const PgnExportCard: React.FC<PgnExportCardProps> = React.memo(({
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={handleCopyPgn}
-            className="flex-1 min-w-[100px] py-1.5 px-3 bg-neutral-900 hover:bg-neutral-800 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+            className="flex-1 min-w-[110px] py-2 px-3 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+            title="Salin string PGN ke clipboard"
           >
             {copiedPgn ? (
               <>
@@ -86,24 +87,25 @@ export const PgnExportCard: React.FC<PgnExportCardProps> = React.memo(({
             ) : (
               <>
                 <Copy className="w-3.5 h-3.5" />
-                <span>Salin PGN</span>
+                <span>Salin Teks PGN</span>
               </>
             )}
           </button>
           <button
             onClick={handleDownloadPgn}
-            className="flex-1 min-w-[100px] py-1.5 px-3 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors border border-neutral-200 cursor-pointer"
+            className="flex-1 min-w-[110px] py-2 px-3 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all border border-neutral-200/90 cursor-pointer"
+            title="Unduh file .pgn ke perangkat Anda"
           >
-            <Download className="w-3.5 h-3.5" />
-            <span>Unduh .PGN</span>
+            <Download className="w-3.5 h-3.5 text-neutral-700" />
+            <span>Unduh File .PGN</span>
           </button>
           <button
             onClick={handleQuickSaveToDb}
-            className="flex-1 min-w-[110px] py-1.5 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-            title="Simpan game ini secara lokal ke IndexedDB browser"
+            className="flex-1 min-w-[120px] py-2 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-950 border border-indigo-200/90 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+            title="Simpan game ini ke koleksi IndexedDB lokal browser"
           >
             <Database className="w-3.5 h-3.5 text-indigo-600" />
-            <span>{saveStatus || 'Simpan DB'}</span>
+            <span>{saveStatus || 'Simpan ke IndexedDB'}</span>
           </button>
         </div>
 

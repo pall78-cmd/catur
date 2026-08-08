@@ -216,25 +216,30 @@ export function detectOpening(history: any[]): ChessOpening | null {
     return sanStr ? sanStr.replace(/[+#?!]/g, '').trim() : '';
   }).filter(Boolean);
 
+  if (historySan.length === 0) return null;
+
   let bestMatch: ChessOpening | null = null;
   let maxMatchLength = 0;
 
   for (const opening of OPENINGS_DATABASE) {
+    if (!opening || !Array.isArray(opening.moves)) continue;
     const len = opening.moves.length;
-    if (historySan.length >= len) {
-      let isMatch = true;
-      for (let i = 0; i < len; i++) {
-        const played = historySan[i];
-        const ref = opening.moves[i].replace(/[+#?!]/g, '').trim();
-        if (played !== ref) {
-          isMatch = false;
-          break;
-        }
+    // Check match up to the min of played moves or opening sequence length
+    const checkLen = Math.min(historySan.length, len);
+    let isMatch = true;
+
+    for (let i = 0; i < checkLen; i++) {
+      const played = historySan[i];
+      const ref = opening.moves[i].replace(/[+#?!]/g, '').trim();
+      if (played !== ref) {
+        isMatch = false;
+        break;
       }
-      if (isMatch && len > maxMatchLength) {
-        maxMatchLength = len;
-        bestMatch = opening;
-      }
+    }
+
+    if (isMatch && checkLen > maxMatchLength) {
+      maxMatchLength = checkLen;
+      bestMatch = opening;
     }
   }
 

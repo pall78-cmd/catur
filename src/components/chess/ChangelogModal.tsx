@@ -8,6 +8,30 @@ interface ChangelogModalProps {
 
 const CHANGELOG_DATA = [
   {
+    version: 'v2.1.0',
+    date: 'Pembaruan Terbaru (v2.1.0)',
+    tag: 'Grafik Evaluasi Interaktif & Stress Test Ekstrim',
+    tagColor: 'bg-indigo-100 text-indigo-900 border-indigo-200',
+    changes: [
+      {
+        title: 'Grafik Evaluasi Posisi Catur Dinamis',
+        desc: 'Mengintegrasikan Recharts untuk merender grafik area (Area Chart) visual interaktif. Grafik ini memetakan fluktuasi skor evaluasi centipawn (cp) dan posisi skakmat (mate) pada setiap pergerakan selama permainan.',
+      },
+      {
+        title: 'Navigasi Melalui Grafik Area',
+        desc: 'Pengguna sekarang dapat melompat secara instan ke titik langkah tertentu di papan catur hanya dengan mengklik node riwayat langkah yang relevan pada grafik evaluasi.',
+      },
+      {
+        title: 'Framework Uji Ketahanan Bruteforce (1000x Siklus)',
+        desc: 'Skala uji stabilitas dan kemampuan WebAssembly Stockfish Engine dinaikkan dari 100x menjadi 1000x siklus stress test untuk memastikan ketahanan dan memori cache berjalan tanpa memory leak meskipun digunakan untuk simulasi ekstrim.',
+      },
+      {
+        title: 'Pembaruan Antarmuka & Modul PGN',
+        desc: 'Memperjelas aksi unduh, ekspor, dan penyimpanan IndexedDB dari koleksi PGN pengguna. Pembersihan notasi UI untuk interaksi yang lebih mulus.',
+      },
+    ],
+  },
+  {
     version: 'v2.0.0',
     date: 'Major Release (v2.0.0)',
     tag: 'UI Compact, Refinement & Optimasi Performa',

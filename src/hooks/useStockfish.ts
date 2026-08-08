@@ -35,8 +35,10 @@ export function useStockfish(
   const [engineDepth, setEngineDepth] = useState<number>(0);
   const [analysisTimeMs, setAnalysisTimeMs] = useState<number>(0);
   const [isApiFallback, setIsApiFallback] = useState<boolean>(false);
+  const [analyzedFen, setAnalyzedFen] = useState<string>('');
 
   const engineRef = useRef<Worker | null>(null);
+  const isWorkerReadyRef = useRef<boolean>(false);
   const activeFenRef = useRef(activeFen);
   const lastUpdateRef = useRef<number>(0);
   const startTimeRef = useRef<number>(Date.now());
@@ -69,13 +71,13 @@ export function useStockfish(
       worker.postMessage(`setoption name Hash value ${hashSize}`);
       worker.postMessage('isready');
 
-      // If worker does not send 'readyok' within 2000ms, fallback to API
+      // If worker does not send 'readyok' within 3000ms, fallback to API
       isReadyTimeout = setTimeout(() => {
-        if (!isApiFallback && (!worker || !engineRef.current)) {
+        if (!isWorkerReadyRef.current) {
           console.warn('[Stockfish] Local worker not responding to ready signals. Falling back to public API.');
           setIsApiFallback(true);
         }
-      }, 2000);
+      }, 3000);
 
       worker.onerror = (err) => {
         console.warn('Stockfish worker execution error, falling back to public API:', err);
@@ -97,6 +99,7 @@ export function useStockfish(
 
         // Parse readyok
         if (line === 'readyok') {
+          isWorkerReadyRef.current = true;
           if (isReadyTimeout) clearTimeout(isReadyTimeout);
           return;
         }
@@ -104,6 +107,7 @@ export function useStockfish(
         // Parse bestmove line output from Stockfish
         if (line.startsWith('bestmove')) {
           setAnalysisTimeMs(Date.now() - startTimeRef.current);
+          setAnalyzedFen(activeFenRef.current);
           const parts = line.split(' ');
           if (parts[1] && parts[1].length >= 4 && parts[1] !== '(none)') {
             const moveStr = parts[1];
@@ -133,10 +137,13 @@ export function useStockfish(
           if (now - lastUpdateRef.current < throttleMs) return;
           lastUpdateRef.current = now;
 
-          // Parse Principal Variation (PV) first suggested move
-          const pvMatch = line.match(/pv ([a-h][1-8])([a-h][1-8])/);
-          if (pvMatch) {
-            setEngineBestMove({ from: pvMatch[1], to: pvMatch[2] });
+          // Only parse PV line from multipv 1 (or default line without multipv tag or multipv 1)
+          const isMultiPv2Or3 = line.includes('multipv ') && !line.includes('multipv 1');
+          if (!isMultiPv2Or3) {
+            const pvMatch = line.match(/pv ([a-h][1-8])([a-h][1-8])/);
+            if (pvMatch) {
+              setEngineBestMove({ from: pvMatch[1], to: pvMatch[2] });
+            }
           }
 
           // Parse numeric Centipawn (cp) score or Mate in X (mate)
@@ -152,6 +159,7 @@ export function useStockfish(
             if (type === 'cp') {
               let score = val / 100;
               if (isBlack) score = -score;
+              if (Math.abs(score) < 0.001) score = 0;
               scoreStr = score > 0 ? `+${score.toFixed(2)}` : score.toFixed(2);
             } else if (type === 'mate') {
               let mateMoves = val;
@@ -162,6 +170,7 @@ export function useStockfish(
                   : `-M${Math.abs(mateMoves)}`;
             }
             setEvaluation(scoreStr);
+            setAnalyzedFen(currentFen);
           }
         }
       };
@@ -208,6 +217,7 @@ export function useStockfish(
         setEngineBestMove(result.engineBestMove);
         setEngineDepth(result.engineDepth);
         setAnalysisTimeMs(result.timeMs);
+        setAnalyzedFen(activeFen);
         return;
       }
 
@@ -217,11 +227,13 @@ export function useStockfish(
         engineRef.current.postMessage(`position fen ${activeFen}`);
         engineRef.current.postMessage(`go depth ${targetDepth}`);
 
-        // Set safety liveness timer: if worker doesn't respond with any messages in 1200ms, use API
+        // Set safety liveness timer: if worker never responded with readyok within 4000ms, fall back to API
         livenessTimerRef.current = setTimeout(() => {
-          console.warn('[Stockfish] Local worker became unresponsive. Falling back to public API.');
-          setIsApiFallback(true);
-        }, 1200);
+          if (!isWorkerReadyRef.current) {
+            console.warn('[Stockfish] Local worker became unresponsive. Falling back to public API.');
+            setIsApiFallback(true);
+          }
+        }, 4000);
       } else {
         // If no worker exists, trigger fallback
         setIsApiFallback(true);
@@ -249,6 +261,6 @@ export function useStockfish(
     }
   };
 
-  return { evaluation, engineBestMove, engineDepth, analysisTimeMs, isApiFallback, clearEngineHash };
+  return { evaluation, engineBestMove, engineDepth, analysisTimeMs, isApiFallback, analyzedFen, clearEngineHash };
 }
 

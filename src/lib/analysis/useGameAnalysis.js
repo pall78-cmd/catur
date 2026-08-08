@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { StockfishAnalyzer } from "./stockfishEngine.js";
 import { analyzeGame } from "./gameAnalyzer.js";
 
-export function useGameAnalysis({ depth = 22, multipv = 3 } = {}) {
+export function useGameAnalysis({ depth = 20, multipv = 3 } = {}) {
   const analyzerRef = useRef(null);
   const [isReady, setIsReady] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
